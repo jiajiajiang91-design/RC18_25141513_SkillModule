@@ -10,7 +10,15 @@
 | **Academic Year** | 2025–2026 |
 | **Tutors** | Dimitra Bra (GIS) · William Huang (AI) · Enriqueta Llabres-Valls (UE) |
 
-> **OneDrive (Large Files):** [RC18_25141513_CodebookLargeFiles](INSERT_YOUR_ONEDRIVE_LINK_HERE)
+> **OneDrive (Large Files):**
+> - [ARCGIS.zip (GIS Project Files)](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucbv512_ucl_ac_uk/IQDIDfrpRPtwT5bGW-8U2O0MAcz4RAC6Ww1Hy1svnYwgE58?e=ncj8z1)
+> - [Niagara_test2.zip (UE Project Files)](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucbv512_ucl_ac_uk/IQAcYDZaTZBETae4gxXVY24-AcoZLthi7GDia0bszxxIPM4?e=0UsAl3)
+
+> **Video Links:**
+> - [Latent Walk Video (YouTube)](https://youtu.be/XniW9sVhLH0)
+> - [N8N Entropy Atlas Demo (YouTube)](https://youtube.com/watch?v=XA8W4Zhc5Ek)
+> - [UE Niagara Systems (YouTube)](https://youtu.be/oyOwx5gqYzE)
+> - [Entropy Atlas (Live Interactive Map)](https://jiajiajiang91-design.github.io/Jiajia_Jiang.Github.io/N8N_OUTPUT_entropy_atlas.html)
 
 ---
 
@@ -104,12 +112,12 @@ Multi-scalar environmental cartography tracing concrete's contamination lifecycl
 - **`01_feature_extraction.ipynb`** — ArcPy script that extracts 6 environmental features (brownfield density, building coverage, waste infrastructure, flood risk, population, ecological sensitivity) from spatial join results across 64 fishnet grid cells. Outputs `Grid_Features.csv`.
 - **`02_composite_index.ipynb`** — Computes a min-max normalised Composite Contamination Index and writes it back to the ArcGIS Pro attribute table for cartographic visualisation.
 
+### Large Files (OneDrive)
+- [ARCGIS.zip — Full ArcGIS Pro project + geodatabase](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucbv512_ucl_ac_uk/IQDIDfrpRPtwT5bGW-8U2O0MAcz4RAC6Ww1Hy1svnYwgE58?e=ncj8z1)
+
 ### Software
 - ArcGIS Pro 3.6 (Esri)
 - Projections: Orthographic (global sphere), Mercator (continental), British National Grid (UK/London)
-
-### Data Sources
-All datasets are open-access. See the [References](#references) section for full citations.
 
 ---
 
@@ -134,12 +142,14 @@ K-Means → N8N Automation → Latent Walk → Pix2Pix → Neural CA
 - **Pipeline:** N8N workflows automate Overpass API + Google Places scraping
 - **Output:** 1,026 geo-located data points; interactive Leaflet map
 - **Live URL:** [Entropy Atlas](https://jiajiajiang91-design.github.io/Jiajia_Jiang.Github.io/N8N_OUTPUT_entropy_atlas.html)
+- **Video:** [N8N Entropy Atlas Demo (YouTube)](https://youtube.com/watch?v=XA8W4Zhc5Ek)
 - **Workflows:** `02_AI/02_N8N/AA_Overpass_Dagenham_LandUse.json`, `02_AI/02_N8N/AA_Reddit_Dagenham_Feedback.json`
 
 ### System 03: Latent Walk
 - **Input:** 1,208 images of industrial ruins and rewilding vegetation
 - **Method:** PCA → t-SNE embedding; Stable Diffusion interpolation in ComfyUI
 - **Output:** 90-frame material futures matrix (Concrete×DECAY, Brick×REWILD, Steel×REUSE)
+- **Video:** [Latent Walk Video (YouTube)](https://youtu.be/XniW9sVhLH0)
 - **Workflow:** `02_AI/03_LatentWalk/latent_walk_60frames.json`
 
 ### System 04: Pix2Pix (Conditional GAN)
@@ -174,6 +184,9 @@ Pillow
 
 **Tutor: Enriqueta Llabres-Valls**
 
+- **Video:** [UE Niagara Systems Demo (YouTube)](https://youtu.be/oyOwx5gqYzE)
+- **Project Files:** [Niagara_test2.zip (OneDrive)](https://liveuclac-my.sharepoint.com/:u:/g/personal/ucbv512_ucl_ac_uk/IQAcYDZaTZBETae4gxXVY24-AcoZLthi7GDia0bszxxIPM4?e=0UsAl3)
+
 ### Niagara System 1: Industrial Smoke Plume
 - SimpleSpriteBurst emitter, Lifetime 3–5s, Sprite Size 1000
 - Modules: Scale Color (white→grey curve), Drag (2.0), Acceleration Force, Scale Sprite Size
@@ -183,10 +196,6 @@ Pillow
 - SimpleSpriteBurst, 500 particles, Lifetime 0.5–3s
 - Modules: Add Velocity In Cone (300–500, 45°), Curl Noise Force, Gravity, Ray Traced Collision
 - **Material:** flame02_Mat — Translucent, Particle Color × 100 → Emissive (HDR bloom), Alpha-masked flame atlas
-
-### Files
-UE project files exceed 100MB and are hosted on OneDrive:
-> **[OneDrive Link — UE Project Files]** *(insert your OneDrive link here)*
 
 ---
 
