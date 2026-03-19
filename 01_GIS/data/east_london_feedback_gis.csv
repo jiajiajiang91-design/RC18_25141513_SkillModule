@@ -1,0 +1,138 @@
+﻿id,latitude,longitude,location_name,feedback_text,category,highlight,rating,source
+1,51.55354,0.17674,Eastbrookend Country Park,Stunning country park with horses and rabbits everywhere,ecosystem,0,4.6,Google Places
+2,51.55354,0.17674,Eastbrookend Country Park,Great nature reserve largely untouched,ecosystem,1,4.6,Google Places
+3,51.55354,0.17674,Eastbrookend Country Park,Not the sort of thing you would expect to find in such an urban area,impressions,1,4.6,Google Places
+4,51.55354,0.17674,Eastbrookend Country Park,Free roaming rabbits and horses here,wildlife,0,4.6,Google Places
+5,51.55354,0.17674,Eastbrookend Country Park,Hidden gem at sunset with sculpture trail and golden sky,impressions,0,4.6,Google Places
+6,51.55432,0.17986,The Chase Nature Reserve,Hundreds of wild rabbits at every turn everywhere,wildlife,1,4.5,Google Places
+7,51.55432,0.17986,The Chase Nature Reserve,Eliminates that work life stress,impressions,0,4.5,Google Places
+8,51.55432,0.17986,The Chase Nature Reserve,Bird singing everywhere refreshes your mind,wildlife,0,4.5,Google Places
+9,51.53181,0.16582,Beam Parklands,Hidden gem of green space in the middle of town,ecosystem,1,4.3,Google Places
+10,51.53181,0.16582,Beam Parklands,Full of drinkers and youth. Rubbish everywhere. Shame!,decay,1,4.3,Google Places
+11,51.54464,0.13245,Parsloes Park,Beautiful view towards the sunset,impressions,1,4.2,Google Places
+12,51.53574,0.15748,Old Dagenham Park,Skatepark surface unusable even grass growing out the cracks,decay,1,4.1,Google Places
+13,51.53574,0.15748,Old Dagenham Park,Destroyed and got rid of the children's play area,decay,1,4.1,Google Places
+14,51.52623,0.14612,Dagenham Dock Station,Surrounding areas are industrial area,infrastructure,1,3.8,Google Places
+15,51.52623,0.14612,Dagenham Dock Station,Lifts were quite dirty with lots of rubbish in them,decay,0,3.8,Google Places
+16,51.52623,0.14612,Dagenham Dock Station,Station is very quiet and you can hear the motorway nearby,impressions,0,3.8,Google Places
+17,51.52623,0.14612,Dagenham Dock Station,A basic station with no amenities both lifts break down often,decay,0,3.8,Google Places
+18,51.51865,0.11877,Barking Riverside,Great views of Thames estuary,impressions,1,3.9,Google Places
+19,51.51865,0.11877,Barking Riverside,Bit of a ghost town as area still being developed,decay,1,3.9,Google Places
+20,51.51865,0.11877,Barking Riverside,No gyms GP coffee shops pubs or any kind of amenities,decay,1,3.9,Google Places
+21,51.51865,0.11877,Barking Riverside,Streetlights non-operational for over a year,decay,1,3.9,Google Places
+22,51.51865,0.11877,Barking Riverside,Footpaths in disrepair filled with puddles when it rains,decay,0,3.9,Google Places
+23,51.51865,0.11877,Barking Riverside,Surrender areas are full of rubbish and litter shocking conditions,decay,1,3.9,Google Places
+24,51.51942,0.11597,Barking Riverside Station,Long awaited overground station beautiful clean and great location,infrastructure,0,3.9,Google Places
+25,51.51942,0.11597,Barking Riverside Station,Step-free with stunning view of the Thames,impressions,0,3.9,Google Places
+26,51.52494,0.08961,Beckton Creekside Nature Reserve,Smell of sewage and abandoned place,decay,1,4.1,Google Places
+27,51.52494,0.08961,Beckton Creekside Nature Reserve,Trail via the river is overgrown unmaintained and dirty,decay,0,4.1,Google Places
+28,51.48709,0.22772,RSPB Rainham Marshes,A real oasis near London wonderful reserve,ecosystem,1,4.6,Google Places
+29,51.48709,0.22772,RSPB Rainham Marshes,Tranquil nature reserve lots of wildlife to spot,wildlife,1,4.6,Google Places
+30,51.50889,0.13819,Crossness Pumping Station,Fascinating display about how London sewers overcame Cholera,infrastructure,1,4.8,Google Places
+31,51.50889,0.13819,Crossness Pumping Station,Insane levels Victorians went to make mundane building look incredible,impressions,1,4.8,Google Places
+32,51.50101,0.13012,Southmere Park Thamesmead,Many pockets of deprivation in the area,decay,1,4.4,Google Places
+33,51.48734,0.13348,Lesnes Abbey Woods,Beautiful woods and gardens around ruins of the Abbey,ecosystem,1,4.7,Google Places
+34,51.51539,0.09677,Barking Creek Barrier,A brutalist guillotine with little portholes,impressions,1,4.1,Google Places
+35,51.51539,0.09677,Barking Creek Barrier,Grimy industry surrounds this little oasis pressed against the muddy Creek,decay,1,4.1,Google Places
+36,51.51539,0.09677,Barking Creek Barrier,Far more derelict and overgrown than older photos show,decay,1,4.1,Google Places
+37,51.53797,0.08143,Vicarage Field Barking,Feels like a relic of the past eerily quiet with many empty units,decay,1,3.7,Google Places
+38,51.53797,0.08143,Vicarage Field Barking,Once a bustling hub now fading fast,decay,1,3.7,Google Places
+39,51.53618,0.07904,Barking Town Hall,Town and high street is very dirty rubbish everywhere,decay,1,3.7,Google Places
+40,51.53618,0.07904,Barking Town Hall,Council debt in excess of one billion pounds,infrastructure,1,3.7,Google Places
+41,51.52138,0.08074,Beckton Sewage Treatment Works,Very smelly in hot weather the smell is horrid in the whole area,decay,1,3.3,Google Places
+42,51.52138,0.08074,Beckton Sewage Treatment Works,The whole of east ham and beckton smells very bad in summer,decay,1,3.3,Google Places
+43,51.52273,0.13503,Veolia Dagenham,Stench of recycling plants cause frequent health hazard for residents,decay,1,4.0,Google Places
+44,51.52273,0.13503,Veolia Dagenham,Unbearable to be outdoors when the smell hits,decay,1,4.0,Google Places
+45,51.52273,0.13503,Veolia Dagenham,What a place I hope I never go there again,decay,0,4.0,Google Places
+46,51.52225,0.14046,London Sustainable Industries Park,Stench causes frequent health hazard for nearby residents,decay,1,3.9,Google Places
+47,51.52225,0.14046,London Sustainable Industries Park,What these guys do is amazing turning food into bio gas,infrastructure,0,3.9,Google Places
+48,51.51734,0.10559,Dhamecha Cash and Carry,Very dirty rats eat you here and you wait hours,decay,1,4.0,Google Places
+49,51.48029,0.18057,Erith Riverside,Many empty units dominating the centre a downfall since Covid,decay,1,3.8,Google Places
+50,51.54512,0.08665,Barking Park,Beautiful relaxing spot perfect for a morning walk or afternoon unwind,impressions,0,4.6,Google Places
+51,51.54512,0.08665,Barking Park,Pleasant park with pleasant squirrels charming flower gardens and disused miniature railway tracks,ecosystem,1,4.6,Google Places
+52,51.54512,0.08665,Barking Park,Water park looks lifeless and reasonable amount of litter,decay,1,4.6,Google Places
+53,51.54512,0.08665,Barking Park,Some very old gorgeous trees a very quiet place for morning and evening walk,ecosystem,0,4.6,Google Places
+54,51.5467,0.0857,Magical Unicorn Lake,Great fun on a sunny day and lots of bird spotting along the way,wildlife,0,4.7,Google Places
+55,51.54216,0.11022,Mayesbrook Park,Tranquil park with serene lake ducks glide across the water,ecosystem,0,4.4,Google Places
+56,51.54216,0.11022,Mayesbrook Park,Massive park with playground outdoor gym and beautiful lake,impressions,0,4.4,Google Places
+57,51.54216,0.11022,Mayesbrook Park,In the evening you do get a few group of drinkers so be careful,decay,1,4.4,Google Places
+58,51.55982,0.16291,Central Park Dagenham,You have no idea how this park improved the quality of life in the area,impressions,1,4.3,Google Places
+59,51.55982,0.16291,Central Park Dagenham,Lots of hills built with pathways two little lakes and can access the chase,ecosystem,0,4.3,Google Places
+60,51.55982,0.16291,Central Park Dagenham,Loads of little bits of silver foil about,decay,0,4.3,Google Places
+61,51.51652,0.09724,Creekmouth Open Space,Pretty bleak place in winter but has a certain mystique about it history and off the beaten track,impressions,1,3.8,Google Places
+62,51.51652,0.09724,Creekmouth Open Space,Bins by the main gate are overflowing a recurring problem,decay,1,3.8,Google Places
+63,51.51652,0.09724,Creekmouth Open Space,Scruffy untidy building sites industrial buildings the refuse depot stinks,decay,1,3.8,Google Places
+64,51.51652,0.09724,Creekmouth Open Space,Still fenced off and inaccessible,decay,1,3.8,Google Places
+65,51.51652,0.09724,Creekmouth Open Space,Great place to fish for over 40 years seen the Thames get cleaner with peregrine falcons and seals,wildlife,1,3.8,Google Places
+66,51.54105,0.14899,Heathway Shopping Centre,Stuck in the 80s looks dated dull and dirty in need of a total revamp,decay,1,3.6,Google Places
+67,51.54105,0.14899,Heathway Shopping Centre,Need to re-open the toilets and incentivise business owners for empty units,decay,1,3.6,Google Places
+68,51.54105,0.14899,Heathway Shopping Centre,Heathway shopping feels overpriced even basic stuff costs more than it should,decay,0,3.6,Google Places
+69,51.55156,0.16151,The Eastbrook Pub,Tradition and warmth a well-loved local pub with nostalgic atmosphere,impressions,0,4.2,Google Places
+70,51.52256,0.14046,Thames Gateway Park Industrial,Not very well looked after security staff seem more interested in games than providing service,decay,1,3.7,Google Places
+71,51.52256,0.14046,Thames Gateway Park Industrial,Handy industrial estate in a thriving commercial area just off the A13,infrastructure,0,3.7,Google Places
+72,51.52968,0.08277,Gascoigne Estate Barking,Been robbed here several times would not recommend,decay,1,2.4,Google Places
+73,51.52968,0.08277,Gascoigne Estate Barking,Not safe place at all,decay,1,2.4,Google Places
+74,51.53716,0.07503,Abbey Green Barking,Very quiet and calm place for a walk with a small cemetery and church,impressions,0,4.4,Google Places
+75,51.53716,0.07503,Abbey Green Barking,Years back the place was excellent now dog poo everywhere benches need repainting,decay,1,4.4,Google Places
+76,51.53558,0.07588,St Margaret Parish Church Barking,Remarkable how it still stands today seeing the wars come and go through WW1 and WW2,impressions,1,4.6,Google Places
+77,51.53955,0.08095,Barking Station,Extremely busy with lots of fare evasion and people pushing through barriers,infrastructure,1,3.7,Google Places
+78,51.53955,0.08095,Barking Station,Busy with a lot of activities keep your personal belongings safe,impressions,0,3.7,Google Places
+79,51.53317,0.12122,Castle Green Recreation Ground,Recognised by silhouettes of football greats Bobby Moore and Alf Ramsey,impressions,1,4.2,Google Places
+80,51.53317,0.12122,Castle Green Recreation Ground,Nice little park to chill out with picnics and lake with ducks and swans,ecosystem,0,4.2,Google Places
+81,51.53719,0.14236,Goresbrook Park,Needs more bins as there is a lot of dog walkers,decay,0,4.2,Google Places
+82,51.53719,0.14236,Goresbrook Park,Council is trying to improve it planting new trees,ecosystem,0,4.2,Google Places
+83,51.55834,0.13421,Valence House Museum,Amazing museum packed with information and loads of history on Barking and Dagenham,impressions,1,4.7,Google Places
+84,51.55834,0.13421,Valence House Museum,Wonderful place dating back over 2000 years up till the Ford motor company era,impressions,0,4.7,Google Places
+85,51.54417,0.16589,Dagenham East Station,Not accessible extremely difficult to use with a buggy no lift or slope,decay,1,3.8,Google Places
+86,51.51497,0.15139,Ford Dagenham Engine Plant,Historic industrial site still operating engine production,infrastructure,1,4.0,Google Places
+87,51.55834,0.15742,Frizlands Lane Recycling Centre,Very pleasant helpful and friendly staff easy access very well organised,infrastructure,0,4.5,Google Places
+88,51.52945,0.13468,Scrattons Farm Eco Park,Small ecological park connecting industrial and residential zones,ecosystem,0,4.0,Google Places
+89,51.52382,0.11491,The Ripple Nature Reserve,Wetland reserve near industrial corridor buffer between factory and river,ecosystem,0,4.0,Google Places
+90,51.54396,-0.01521,Queen Elizabeth Olympic Park,Stunning urban oasis beautifully landscaped gardens and world-class sports facilities,impressions,1,4.5,Google Places
+91,51.54396,-0.01521,Queen Elizabeth Olympic Park,Scenic waterways vibrant art installations and plenty of green space,ecosystem,0,4.5,Google Places
+92,51.51926,0.06126,Beckton Alps,Recycled reminder of East London industrial heritage great views across urban London,impressions,1,4.3,Google Places
+93,51.51926,0.06126,Beckton Alps,Rather overgrown with multitude of trip hazards sticking out of the ground,decay,1,4.3,Google Places
+94,51.51926,0.06126,Beckton Alps,From 1989 to 2001 a dry ski slope ran down the Beckton Alps now derelict,decay,1,4.3,Google Places
+95,51.50818,0.02941,ExCeL London Royal Docks,Huge event exhibition complex in London Docklands well organised and efficient,infrastructure,0,4.4,Google Places
+96,51.51664,0.0109,Rathbone Market Canning Town,My wedding ring was bought here in 1978,impressions,0,3.7,Google Places
+97,51.51664,0.0109,Rathbone Market Canning Town,Market not as vibrant as once was but hanging in there,decay,1,3.7,Google Places
+98,51.52271,0.03793,Newham University Hospital,One of the worst experiences waited from midnight to 7am no doctor came,decay,1,2.2,Google Places
+99,51.52271,0.03793,Newham University Hospital,Staff were unhelpful and dismissive level of service completely unacceptable,decay,1,2.2,Google Places
+100,51.49002,0.06898,Woolwich Arsenal,Lots of eateries and watering holes amongst old Grade I and II listed buildings,impressions,0,4.2,Google Places
+101,51.49002,0.06898,Woolwich Arsenal,Beautiful and modern station definitely do not think you are in Woolwich,impressions,0,4.2,Google Places
+102,51.49933,0.02312,Lyle Park Silvertown,Fenced-walled small park concealed among poor-taste estate developments view of Thames behind bars,decay,1,4.2,Google Places
+103,51.49933,0.02312,Lyle Park Silvertown,Hidden park with a sense of calmness original gates to the Harland and Wolff shipyard,impressions,1,4.2,Google Places
+104,51.49933,0.02312,Lyle Park Silvertown,Reminder of the industrial heritage of the area from the Tate and Lyle sugar factory,infrastructure,1,4.2,Google Places
+105,51.50986,0.02726,Custom House Station,Amazing clean big station with lifts and escalators connected with DLR,infrastructure,0,4.1,Google Places
+106,51.50179,0.02244,Tate and Lyle Factory Silvertown,Viewable from the nearby DLR station a historic sugar refinery,infrastructure,1,4.2,Google Places
+107,51.5009,0.03482,Thames Barrier Park,Amazing park with plenty of history intriguing diagonal sunken garden with waves of topiary,ecosystem,1,4.5,Google Places
+108,51.5009,0.03482,Thames Barrier Park,Bold modern design looks like something out of a sci-fi film,impressions,1,4.5,Google Places
+109,51.5009,0.03482,Thames Barrier Park,Green Dock is a massive sunken garden cut into the landscape sheltered microclimate,ecosystem,1,4.5,Google Places
+110,51.50514,0.05206,London City Airport,Closest airport to central London compact and extremely efficient,infrastructure,0,4.2,Google Places
+111,51.50224,0.03331,Pontoon Dock Station,Station wobbles really bad when the DLR trains arrive which makes you feel uneasy,impressions,0,4.1,Google Places
+112,51.50224,0.03331,Pontoon Dock Station,Must be one of the most elevated stations in London lifts out of service for a long time,infrastructure,0,4.1,Google Places
+113,51.51706,0.04342,Beckton District Park,Peaceful friendly cat appeared and birds accompanied me to the lake I love Beckton,wildlife,1,4.6,Google Places
+114,51.51706,0.04342,Beckton District Park,Lovely place to exercise go fishing feed birds with basketball court,impressions,0,4.6,Google Places
+115,51.51706,0.04342,Beckton District Park,Further development on the way but council not focusing on toilet facilities or lighting,decay,0,4.6,Google Places
+116,51.51445,0.04346,Beckton District Park South,Hidden gem for anyone in East London relaxed local vibe surprisingly large fishing lake,impressions,1,4.5,Google Places
+117,51.51445,0.04346,Beckton District Park South,Southern segment mostly secondary woodland and morose terrain with strewn litter,decay,1,4.5,Google Places
+118,51.5166,0.07838,Gallions Reach Shopping Park,Spacious with large car park modern and very well maintained,infrastructure,0,4.3,Google Places
+119,51.5166,0.07838,Gallions Reach Shopping Park,Certain times could be smelly as there is a nearby sewage plant,decay,1,4.3,Google Places
+120,51.5214,0.05366,Greenway Walking Trail,Best place to get mugged need to bring your own baseball bat Newham Council pretends no criminals,decay,1,4.6,Google Places
+121,51.51974,0.06672,Greenway Cycle Path,Nice place to walk gets you away from the noise and fumes of the A13,impressions,0,5.0,Google Places
+122,51.5214,0.05366,Greenway Walking Trail,Ubiquitous graffiti adds the expected bilious undertone to jaded urban explorer,decay,1,4.6,Google Places
+123,51.5214,0.05366,Greenway Walking Trail,Olympic Park and the impressive Victorian Abbey Mills Palace of Sewage provide distraction,infrastructure,1,4.6,Google Places
+124,51.54115,0.04598,Plashet Park East Ham,Bright and inviting with open lawns tall trees and clean pathways,ecosystem,0,4.3,Google Places
+125,51.54115,0.04598,Plashet Park East Ham,Beautiful family-friendly park true gem in East Ham,impressions,0,4.3,Google Places
+126,51.5141,0.07678,Beckton Gas Works Site,Former gas works now contaminated brownfield awaiting regeneration,decay,1,0,Google Places
+127,51.52497,0.09954,Oasis Banqueting Thames Road,An event venue in an industrial estate with no parking is disgraceful,decay,0,4.0,Google Places
+128,51.53435,0.05279,East Ham Market,The start of something new also provided a nice shortcut,impressions,0,4.8,Google Places
+129,51.50472,0.11636,Peabody Thamesmead Estate,Awful place managed by incompetents with disgusting personalities horrible to be a resident,decay,1,2.5,Google Places
+130,51.50472,0.11636,Peabody Thamesmead Estate,Corridor is flooded for days all attempts to get attention proved abortive,decay,1,2.5,Google Places
+131,51.50472,0.11636,Peabody Thamesmead Estate,Ceiling has fallen in two sons bedroom one asthmatic one disabled six weeks no repair,decay,1,2.5,Google Places
+132,51.50707,0.10705,Peabody Thamesmead South,Useless and vile shameful and shocking not for profit you must be joking,decay,1,2.3,Google Places
+133,51.50707,0.10705,Peabody Thamesmead South,Left a disabled man with water pouring in ceiling when it rains mice and bugs dropping from void,decay,1,2.3,Google Places
+134,51.53568,0.21122,Hornchurch Country Park,Wonderful park has lot of WW2 history as it was once RAF air field base,impressions,1,4.7,Google Places
+135,51.53568,0.21122,Hornchurch Country Park,Identified 11 different birds using Merlin bird call app in one five-minute session,wildlife,1,4.7,Google Places
+136,51.52312,0.15315,Dagenham Breach,Lots of rubbish from the A13 spoils interesting bit of water inaccessible to public part of Ford estate,decay,1,4.0,Google Places
+137,51.51937,0.19307,Rainham Village,New leisure centre facility in Rainham Village London Borough of Havering,infrastructure,0,3.8,Google Places
