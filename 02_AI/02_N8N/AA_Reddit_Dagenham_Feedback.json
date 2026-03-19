@@ -1,0 +1,161 @@
+{
+  "name": "AA School WS Reddit Dagenham Feedback",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-200, 300],
+      "id": "trigger-1",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "q1",
+              "name": "queries",
+              "value": "={{JSON.stringify([\"dagenham dock pollution\",\"barking riverside development\",\"dagenham industrial decay\",\"barking sewage smell\",\"thamesmead abandoned\",\"dagenham asbestos housing\",\"barking creek derelict\",\"beckton sewage treatment\",\"rainham marshes wildlife\",\"barking riverside ghost town\"])}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [20, 300],
+      "id": "set-queries",
+      "name": "Search Keywords"
+    },
+    {
+      "parameters": {
+        "jsCode": "const queries = JSON.parse(items[0].json.queries);\nconst output = queries.map(q => ({ json: { query: q } }));\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "id": "split-queries",
+      "name": "Split Queries"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [460, 300],
+      "id": "loop-queries",
+      "name": "Loop Over Queries"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.reddit.com/r/london/search.json?q={{ encodeURIComponent($json.query) }}&limit=100&restrict_sr=0&sort=relevance&t=all",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) n8n-research-bot/1.0"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [680, 300],
+      "id": "reddit-search",
+      "name": "Reddit Search"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst data = items[0].json?.data?.children || [];\n\nfor (const post of data) {\n  const d = post.data;\n  if (!d) continue;\n  \n  const text = (d.selftext || '').substring(0, 500);\n  const title = d.title || '';\n  const combined = title + ' ' + text;\n  \n  // Simple keyword-based sentiment classification\n  const decayWords = ['pollution','sewage','smell','waste','rubbish','abandoned','derelict','decay','crack','dirty','rat','neglect','dump','toxic','asbestos','contaminated','demolish','empty','broken','unsafe','litter','stink','horrible','disgusting','ugly','danger','flood','damp','mould','rot'];\n  const ecosystemWords = ['nature','wildlife','bird','tree','park','green','garden','marsh','wetland','rabbit','fox','heron','swan','flower','meadow','woodland','reserve','habitat','biodiversity','ecological'];\n  const infraWords = ['development','construction','building','station','transport','housing','regeneration','council','planning','road','bridge','factory','industrial','warehouse'];\n  \n  const lower = combined.toLowerCase();\n  let decayScore = 0, ecoScore = 0, infraScore = 0;\n  \n  decayWords.forEach(w => { if (lower.includes(w)) decayScore++; });\n  ecosystemWords.forEach(w => { if (lower.includes(w)) ecoScore++; });\n  infraWords.forEach(w => { if (lower.includes(w)) infraScore++; });\n  \n  let category = 'impressions';\n  const maxScore = Math.max(decayScore, ecoScore, infraScore);\n  if (maxScore > 0) {\n    if (decayScore === maxScore) category = 'decay';\n    else if (ecoScore === maxScore) category = 'ecosystem';\n    else category = 'infrastructure';\n  }\n  \n  // Only keep posts with some relevant content\n  if (maxScore > 0 || combined.length > 50) {\n    results.push({\n      json: {\n        title: title,\n        text: text,\n        category: category,\n        score: d.score || 0,\n        num_comments: d.num_comments || 0,\n        subreddit: d.subreddit || 'london',\n        url: 'https://reddit.com' + (d.permalink || ''),\n        created: new Date((d.created_utc || 0) * 1000).toISOString().split('T')[0],\n        source: 'Reddit'\n      }\n    });\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { title: 'No results', text: '', category: 'none' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "id": "extract-posts",
+      "name": "Extract & Classify Posts"
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates",
+        "compare": "selectedFields",
+        "fieldsToCompare": "title",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 4,
+      "position": [1120, 300],
+      "id": "dedup",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [1340, 300],
+      "id": "to-csv",
+      "name": "Convert to CSV"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "C:\\Users\\jiang\\Desktop\\reddit_dagenham_feedback.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [1560, 300],
+      "id": "save-csv",
+      "name": "Save to Desktop"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [[{"node": "Search Keywords", "type": "main", "index": 0}]]
+    },
+    "Search Keywords": {
+      "main": [[{"node": "Split Queries", "type": "main", "index": 0}]]
+    },
+    "Split Queries": {
+      "main": [[{"node": "Loop Over Queries", "type": "main", "index": 0}]]
+    },
+    "Loop Over Queries": {
+      "main": [
+        [{"node": "Reddit Search", "type": "main", "index": 0}],
+        [{"node": "Remove Duplicates", "type": "main", "index": 0}]
+      ]
+    },
+    "Reddit Search": {
+      "main": [[{"node": "Extract & Classify Posts", "type": "main", "index": 0}]]
+    },
+    "Extract & Classify Posts": {
+      "main": [[{"node": "Loop Over Queries", "type": "main", "index": 0}]]
+    },
+    "Remove Duplicates": {
+      "main": [[{"node": "Convert to CSV", "type": "main", "index": 0}]]
+    },
+    "Convert to CSV": {
+      "main": [[{"node": "Save to Desktop", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "aa-workshop-reddit-feedback"
+  },
+  "tags": []
+}

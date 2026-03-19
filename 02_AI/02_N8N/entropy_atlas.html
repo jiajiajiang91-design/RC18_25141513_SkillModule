@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Programming Decay — Dagenham Dock Entropy Atlas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+--bg:#050508;--panel:rgba(8,8,14,0.92);--border:rgba(255,255,255,0.06);
+--cyan:#00f0ff;--green:#00ff94;--magenta:#ff00e5;--yellow:#ffe600;--red:#ff2d55;
+--orange:#ff8a00;--purple:#b44dff;--white:#e8e8e8;--dim:#444;
+}
+body{background:var(--bg);font-family:'JetBrains Mono',monospace;color:var(--white);overflow:hidden;height:100vh}
+#map{width:100%;height:100%;z-index:1}
+
+/* Dark map tiles override */
+.leaflet-tile-pane{filter:saturate(0.3) brightness(0.7) contrast(1.2)}
+.leaflet-popup-content-wrapper{background:var(--panel)!important;color:var(--white)!important;border:1px solid var(--border)!important;border-radius:2px!important;backdrop-filter:blur(20px);font-family:'JetBrains Mono',monospace}
+.leaflet-popup-tip{background:var(--panel)!important}
+.leaflet-popup-close-button{color:var(--dim)!important;font-size:18px!important}
+.leaflet-control-zoom a{background:var(--panel)!important;color:var(--white)!important;border-color:var(--border)!important}
+
+/* Cluster styling */
+.marker-cluster{background:transparent!important}
+.marker-cluster div{background:rgba(0,240,255,0.15)!important;color:var(--cyan)!important;font-family:'JetBrains Mono',monospace!important;font-size:11px!important;font-weight:500;border:1px solid rgba(0,240,255,0.3)!important;border-radius:50%}
+
+/* ─── PANELS ─── */
+.panel{position:absolute;z-index:1000;background:var(--panel);backdrop-filter:blur(16px);border:1px solid var(--border);padding:0;overflow:hidden;transition:all .4s cubic-bezier(.16,1,.3,1)}
+.panel-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.panel-body{padding:16px 20px;max-height:calc(100vh - 200px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--dim) transparent}
+
+/* ─── TITLE PANEL ─── */
+#title-panel{top:20px;left:20px;width:340px;border-left:3px solid var(--cyan)}
+#title-panel h1{font-family:'Instrument Serif',serif;font-size:2rem;font-weight:400;font-style:italic;letter-spacing:-0.5px;line-height:1.1;color:#fff}
+#title-panel .sub{font-size:.65rem;color:var(--dim);letter-spacing:3px;text-transform:uppercase;margin-top:6px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
+.stat-box{text-align:center;padding:12px 4px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:2px;transition:border-color .3s}
+.stat-box:hover{border-color:var(--cyan)}
+.stat-num{font-size:1.6rem;font-weight:700;color:var(--cyan)}
+.stat-label{font-size:.55rem;color:var(--dim);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+
+/* ─── LAYER CONTROL ─── */
+#layer-panel{top:20px;right:20px;width:260px}
+.layer-item{display:flex;align-items:center;padding:8px 0;cursor:pointer;transition:opacity .3s;border-bottom:1px solid rgba(255,255,255,0.03)}
+.layer-item:last-child{border:none}
+.layer-item.off{opacity:.2}
+.layer-dot{width:10px;height:10px;border-radius:50%;margin-right:12px;flex-shrink:0;position:relative}
+.layer-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:inherit;opacity:.3;filter:blur(4px)}
+.layer-name{flex:1;font-size:.7rem;text-transform:uppercase;letter-spacing:1px}
+.layer-count{font-size:.65rem;color:var(--dim);margin-left:8px}
+
+/* ─── FEEDBACK PANEL ─── */
+#feedback-panel{bottom:20px;left:20px;width:380px;max-height:350px;border-left:3px solid var(--magenta)}
+.feedback-item{padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer;transition:all .2s}
+.feedback-item:hover{padding-left:8px;border-left:2px solid var(--magenta)}
+.fb-text{font-size:.75rem;line-height:1.5;font-style:italic;opacity:.8}
+.fb-meta{font-size:.6rem;color:var(--dim);margin-top:4px;display:flex;justify-content:space-between}
+.fb-cat{padding:1px 6px;border-radius:1px;font-size:.55rem;text-transform:uppercase;letter-spacing:1px}
+
+/* ─── SEARCH ─── */
+#search-box{position:absolute;top:20px;left:50%;transform:translateX(-50%);z-index:1000;width:320px}
+#search-input{width:100%;padding:10px 16px 10px 36px;background:var(--panel);border:1px solid var(--border);color:var(--white);font-family:'JetBrains Mono',monospace;font-size:.75rem;outline:none;border-radius:2px;backdrop-filter:blur(16px);transition:border-color .3s}
+#search-input:focus{border-color:var(--cyan)}
+#search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:.8rem}
+
+/* ─── TIMELINE ─── */
+#timeline{position:absolute;bottom:20px;right:20px;z-index:1000;width:260px}
+.timeline-bar{display:flex;gap:2px;margin-top:8px}
+.t-segment{flex:1;height:24px;border-radius:1px;cursor:pointer;transition:all .2s;position:relative;display:flex;align-items:center;justify-content:center;font-size:.5rem;letter-spacing:1px}
+.t-segment:hover{transform:scaleY(1.3);filter:brightness(1.3)}
+.t-segment.active{outline:1px solid #fff;outline-offset:2px}
+
+/* ─── MINIMAP / RADAR ─── */
+#radar{position:absolute;bottom:90px;right:20px;z-index:1000;width:140px;height:140px;border:1px solid var(--border);background:var(--panel);border-radius:50%;overflow:hidden}
+#radar canvas{width:100%;height:100%}
+
+/* ─── TOOLTIP ─── */
+.custom-tooltip{background:var(--panel)!important;border:1px solid var(--border)!important;color:var(--white)!important;font-family:'JetBrains Mono',monospace!important;font-size:.7rem!important;padding:6px 10px!important;border-radius:1px!important;box-shadow:0 4px 20px rgba(0,0,0,.5)!important}
+
+/* ─── SCANLINE EFFECT ─── */
+#scanline{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);mix-blend-mode:overlay}
+
+/* ─── LOADING ─── */
+#loader{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s}
+#loader.done{opacity:0;pointer-events:none}
+#loader h1{font-family:'Instrument Serif',serif;font-size:2.5rem;font-style:italic;color:#fff;margin-bottom:8px}
+#loader p{font-size:.65rem;color:var(--dim);letter-spacing:4px;text-transform:uppercase}
+.load-bar{width:200px;height:2px;background:rgba(255,255,255,.1);margin-top:24px;overflow:hidden;border-radius:1px}
+.load-fill{height:100%;background:var(--cyan);width:0;transition:width 1.5s ease-out;box-shadow:0 0 10px var(--cyan)}
+
+/* ─── POPUP CUSTOM ─── */
+.pop-type{font-size:.6rem;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px}
+.pop-name{font-size:.85rem;font-weight:700;margin-bottom:8px;color:#fff}
+.pop-detail{font-size:.65rem;color:var(--dim);line-height:1.6}
+.pop-coords{font-size:.55rem;color:rgba(255,255,255,.2);margin-top:8px;font-variant-numeric:tabular-nums}
+
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.5);opacity:0}}
+@keyframes float-in{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.panel{animation:float-in .6s ease-out both}
+#layer-panel{animation-delay:.1s}
+#feedback-panel{animation-delay:.2s}
+#timeline{animation-delay:.3s}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <h1>Programming Decay</h1>
+  <p>Initialising entropy atlas</p>
+  <div class="load-bar"><div class="load-fill" id="load-fill"></div></div>
+</div>
+
+<div id="scanline"></div>
+<div id="map"></div>
+
+<div id="search-box">
+  <span id="search-icon">⌕</span>
+  <input type="text" id="search-input" placeholder="Search 1116 data points...">
+</div>
+
+<div id="title-panel" class="panel">
+  <div class="panel-header">
+    <div>
+      <h1>Entropy Atlas</h1>
+      <div class="sub">Dagenham Dock · Digital Phenomenology</div>
+    </div>
+  </div>
+  <div class="panel-body">
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-num" id="s-total">0</div><div class="stat-label">Total Sites</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-decay" style="color:var(--red)">0</div><div class="stat-label">Decay</div></div>
+      <div class="stat-box"><div class="stat-num" id="s-feedback" style="color:var(--magenta)">0</div><div class="stat-label">Reviews</div></div>
+    </div>
+    <div style="margin-top:16px;font-size:.6rem;color:var(--dim);line-height:1.8">
+      <div>SOURCE: OpenStreetMap Overpass API + Google Places</div>
+      <div>COORD: WGS84 EPSG:4326</div>
+      <div>PIPELINE: N8N + Crawl4AI Automation</div>
+      <div>AUTHOR: Jiajia Jiang · UCL MArch RC18</div>
+    </div>
+  </div>
+</div>
+
+<div id="layer-panel" class="panel">
+  <div class="panel-header"><span style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase">Layer Control</span><span style="font-size:.55rem;color:var(--dim)">click to toggle</span></div>
+  <div class="panel-body" id="layer-list"></div>
+</div>
+
+<div id="feedback-panel" class="panel">
+  <div class="panel-header"><span style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase">Sentiment Feed</span><span style="font-size:.55rem;color:var(--dim)" id="fb-count">130 reviews</span></div>
+  <div class="panel-body" id="feedback-list" style="max-height:220px"></div>
+</div>
+
+<div id="timeline" class="panel">
+  <div class="panel-header"><span style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase">Entropy Spectrum</span></div>
+  <div class="panel-body">
+    <div class="timeline-bar" id="spectrum-bar"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:.5rem;color:var(--dim);letter-spacing:1px"><span>DECAY</span><span>NEUTRAL</span><span>ECOLOGY</span></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+// ═══════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════
+const FEEDBACK_CSV = `id,latitude,longitude,location_name,feedback_text,category,highlight,rating,source
+1,51.55354,0.17674,Eastbrookend Country Park,Stunning country park with horses and rabbits everywhere,ecosystem,0,4.6,Google Places
+2,51.55354,0.17674,Eastbrookend Country Park,Great nature reserve largely untouched,ecosystem,1,4.6,Google Places
+3,51.55354,0.17674,Eastbrookend Country Park,Not the sort of thing you would expect to find in such an urban area,impressions,1,4.6,Google Places
+4,51.55354,0.17674,Eastbrookend Country Park,Free roaming rabbits and horses here,wildlife,0,4.6,Google Places
+7,51.55432,0.17986,The Chase Nature Reserve,Hundreds of wild rabbits at every turn everywhere,wildlife,1,4.5,Google Places
+8,51.55432,0.17986,The Chase Nature Reserve,Eliminates that work life stress,impressions,0,4.5,Google Places
+12,51.55432,0.17986,The Chase Nature Reserve,Bird singing everywhere refreshes your mind,wildlife,0,4.5,Google Places
+13,51.53181,0.16582,Beam Parklands,Hidden gem of green space in the middle of town,ecosystem,1,4.3,Google Places
+18,51.53181,0.16582,Beam Parklands,Full of drinkers and youth. Rubbish everywhere. Shame!,decay,1,4.3,Google Places
+22,51.54464,0.13245,Parsloes Park,Beautiful view towards the sunset,impressions,1,4.2,Google Places
+29,51.53574,0.15748,Old Dagenham Park,Skatepark surface unusable even grass growing out the cracks,decay,1,4.1,Google Places
+30,51.53574,0.15748,Old Dagenham Park,Destroyed and got rid of the children's play area,decay,1,4.1,Google Places
+34,51.52623,0.14612,Dagenham Dock Station,Surrounding areas are industrial area,infrastructure,1,3.8,Google Places
+36,51.52623,0.14612,Dagenham Dock Station,Lifts were quite dirty with lots of rubbish in them,decay,0,3.8,Google Places
+40,51.51865,0.11877,Barking Riverside,Great views of Thames estuary,impressions,1,4.2,Google Places
+41,51.51865,0.11877,Barking Riverside,Bit of a ghost town as area still being developed,decay,1,4.2,Google Places
+43,51.51865,0.11877,Barking Riverside,No gyms GP coffee shops pubs or any kind of amenities,decay,1,4.2,Google Places
+45,51.51865,0.11877,Barking Riverside,Streetlights non-operational for over a year,decay,1,4.2,Google Places
+54,51.52494,0.08961,Beckton Creekside Nature Reserve,Smell of sewage and abandoned place,decay,1,4.1,Google Places
+59,51.52494,0.08961,Beckton Creekside Nature Reserve,Trail via the river is overgrown unmaintained and dirty,decay,0,4.1,Google Places
+66,51.48709,0.22772,RSPB Rainham Marshes,A real oasis near London wonderful reserve,ecosystem,1,4.6,Google Places
+67,51.48709,0.22772,RSPB Rainham Marshes,Tranquil nature reserve lots of wildlife to spot,wildlife,1,4.6,Google Places
+72,51.50889,0.13819,Crossness Pumping Station,Fascinating display about how London sewers overcame Cholera,infrastructure,1,4.8,Google Places
+74,51.50889,0.13819,Crossness Pumping Station,Insane levels Victorians went to make mundane building look incredible,impressions,1,4.8,Google Places
+77,51.50101,0.13012,Southmere Park Thamesmead,Many pockets of deprivation in the area,decay,1,4.4,Google Places
+81,51.48734,0.13348,Lesnes Abbey Woods,Beautiful woods and gardens around ruins of the Abbey,ecosystem,1,4.7,Google Places
+85,51.51539,0.09677,Barking Creek Barrier,A brutalist guillotine with little portholes,impressions,1,4.1,Google Places
+86,51.51539,0.09677,Barking Creek Barrier,Grimy industry surrounds this little oasis pressed against the muddy Creek,decay,1,4.1,Google Places
+88,51.51539,0.09677,Barking Creek Barrier,Far more derelict and overgrown than older photos show,decay,1,4.1,Google Places
+91,51.53797,0.08143,Vicarage Field Barking,Feels like a relic of the past eerily quiet with many empty units,decay,1,3.7,Google Places
+93,51.53797,0.08143,Vicarage Field Barking,Once a bustling hub now fading fast,decay,1,3.7,Google Places
+96,51.53618,0.07904,Barking Town Hall,Town and high street is very dirty rubbish everywhere,decay,1,3.7,Google Places
+98,51.53618,0.07904,Barking Town Hall,Council debt in excess of one billion pounds,infrastructure,1,3.7,Google Places
+103,51.52138,0.08074,Beckton Sewage Treatment Works,Very smelly in hot weather the smell is horrid in the whole area,decay,1,3.3,Google Places
+104,51.52138,0.08074,Beckton Sewage Treatment Works,The whole of east ham and beckton smells very bad in summer,decay,1,3.3,Google Places
+106,51.52273,0.13503,Veolia Dagenham,Stench of recycling plants cause frequent health hazard for residents,decay,1,4.0,Google Places
+107,51.52273,0.13503,Veolia Dagenham,Unbearable to be outdoors when the smell hits,decay,1,4.0,Google Places
+119,51.52225,0.14046,London Sustainable Industries Park,Stench causes frequent health hazard for nearby residents,decay,1,3.9,Google Places
+124,51.51734,0.10559,Dhamecha Cash and Carry,Very dirty rats eat you here and you wait hours,decay,1,4.0,Google Places
+128,51.48029,0.18057,Erith Riverside,Many empty units dominating the centre a downfall since Covid,decay,1,3.8,Google Places`;
+
+// ═══════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════
+const TYPE_CONFIG = {
+  industrial_building:{color:'#0088aa',label:'Industrial Building',icon:'◼'},
+  industrial:{color:'#00f0ff',label:'Industrial Zone',icon:'◆'},
+  waste_facility:{color:'#00ff00',label:'Waste Facility',icon:'☢'},
+  construction:{color:'#ffe600',label:'Construction',icon:'▲'},
+  brownfield:{color:'#ff00e5',label:'Brownfield',icon:'⬟'},
+  warehouse:{color:'#5577ff',label:'Warehouse',icon:'▬'},
+  chimney_stack:{color:'#ff8a00',label:'Chimney Stack',icon:'▮'},
+  abandoned:{color:'#ff2d55',label:'Abandoned',icon:'✕'},
+  sewage:{color:'#44ff44',label:'Sewage Works',icon:'◉'},
+  landfill:{color:'#cc00ff',label:'Landfill',icon:'◈'},
+  ruins:{color:'#ff0044',label:'Ruins',icon:'△'},
+};
+const FEEDBACK_COLORS = {
+  decay:'#ff2d55',ecosystem:'#00ff94',wildlife:'#00d4ff',
+  impressions:'#b44dff',infrastructure:'#ffe600'
+};
+
+// ═══════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════
+const map = L.map('map',{zoomControl:false,preferCanvas:true}).setView([51.522,0.13],13);
+L.control.zoom({position:'bottomleft'}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  attribution:'OpenStreetMap + CARTO',subdomains:'abcd',maxZoom:19
+}).addTo(map);
+
+// ═══════════════════════════════════════
+// LOAD & RENDER
+// ═══════════════════════════════════════
+const allLayers = {};
+const allMarkers = [];
+let feedbackMarkers = [];
+let overpassData = [];
+
+// Loading sequence
+setTimeout(()=>document.getElementById('load-fill').style.width='70%',100);
+
+// Fetch the overpass CSV that user uploaded
+fetch('').catch(()=>null); // placeholder
+
+// Parse overpass data from the page (we'll embed it inline to avoid fetch issues)
+function loadOverpassData(csvText){
+  return new Promise(resolve=>{
+    Papa.parse(csvText,{
+      header:true,skipEmptyLines:true,dynamicTyping:true,
+      complete:r=>resolve(r.data)
+    });
+  });
+}
+
+function loadFeedbackData(){
+  return new Promise(resolve=>{
+    Papa.parse(FEEDBACK_CSV,{
+      header:true,skipEmptyLines:true,dynamicTyping:true,
+      complete:r=>resolve(r.data)
+    });
+  });
+}
+
+// We need to load the overpass CSV. Since it's a local file, embed it via script
+// The user will paste their CSV or we reference it
+async function init(){
+  // Parse the overpass data from the uploaded file embedded in the page
+  const overpassResp = await fetch('overpass_dagenham_named.csv').catch(()=>null);
+  let overpassText;
+  if(overpassResp && overpassResp.ok){
+    overpassText = await overpassResp.text();
+  } else {
+    // Fallback: use data from document if embedded
+    overpassText = document.getElementById('overpass-data')?.textContent || '';
+  }
+  
+  let osData = [];
+  if(overpassText){
+    osData = await loadOverpassData(overpassText);
+  }
+  
+  const fbData = await loadFeedbackData();
+  overpassData = osData;
+  
+  document.getElementById('load-fill').style.width='100%';
+  
+  setTimeout(()=>{
+    renderOverpass(osData);
+    renderFeedback(fbData);
+    buildLayerPanel();
+    buildFeedbackPanel(fbData);
+    buildSpectrum(osData,fbData);
+    updateStats(osData,fbData);
+    setupSearch(osData,fbData);
+    document.getElementById('loader').classList.add('done');
+  },800);
+}
+
+function getTypeConfig(type){
+  // Merge minor industrial subtypes
+  if(type.startsWith('industrial_') && !TYPE_CONFIG[type]){
+    return TYPE_CONFIG.industrial;
+  }
+  return TYPE_CONFIG[type] || {color:'#888',label:type,icon:'·'};
+}
+
+function renderOverpass(data){
+  const typeCounts = {};
+  
+  data.forEach((row,i)=>{
+    if(!row.latitude||!row.longitude) return;
+    const type = row.site_type || 'industrial';
+    const cfg = getTypeConfig(type);
+    const baseType = TYPE_CONFIG[type] ? type : (type.startsWith('industrial_')?'industrial':type);
+    
+    if(!typeCounts[baseType]) typeCounts[baseType]=0;
+    typeCounts[baseType]++;
+    
+    const isDecay = row.category === 'decay';
+    const radius = isDecay ? 6 : 4;
+    const opacity = isDecay ? 0.9 : 0.6;
+    
+    const marker = L.circleMarker([row.latitude, row.longitude],{
+      radius, fillColor:cfg.color, color:'rgba(0,0,0,0.5)', weight:0.5,
+      fillOpacity:opacity, className:'os-marker'
+    });
+    
+    marker.bindPopup(`
+      <div class="pop-type" style="color:${cfg.color}">${cfg.icon} ${cfg.label}</div>
+      <div class="pop-name">${row.name}</div>
+      <div class="pop-detail">Category: ${row.category}<br>OSM Type: ${row.osm_type} #${row.osm_id}<br>Land use: ${row.landuse||'—'}</div>
+      <div class="pop-coords">${row.latitude}, ${row.longitude}</div>
+    `,{className:'custom-tooltip',maxWidth:280});
+    
+    marker.bindTooltip(row.name,{className:'custom-tooltip',direction:'top',offset:[0,-6]});
+    
+    marker._data = row;
+    marker._baseType = baseType;
+    
+    if(!allLayers[baseType]){
+      allLayers[baseType] = L.markerClusterGroup({
+        maxClusterRadius:35,
+        spiderfyOnMaxZoom:true,
+        iconCreateFunction:cluster=>{
+          const count = cluster.getChildCount();
+          return L.divIcon({
+            html:`<div style="background:${cfg.color}22;border:1px solid ${cfg.color}55;color:${cfg.color};width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'JetBrains Mono',monospace">${count}</div>`,
+            className:'',iconSize:[36,36]
+          });
+        }
+      });
+      allLayers[baseType].addTo(map);
+    }
+    allLayers[baseType].addLayer(marker);
+    allMarkers.push(marker);
+  });
+}
+
+function renderFeedback(data){
+  const fbGroup = L.layerGroup().addTo(map);
+  allLayers['__feedback'] = fbGroup;
+  
+  data.forEach(row=>{
+    if(!row.latitude||!row.longitude) return;
+    const cat = row.category||'impressions';
+    const color = FEEDBACK_COLORS[cat]||'#fff';
+    const isHighlight = row.highlight == 1;
+    const size = isHighlight ? 10 : 7;
+    
+    // Pulsing marker for highlights
+    const marker = L.circleMarker([row.latitude,row.longitude],{
+      radius:size,fillColor:color,color:color,weight:isHighlight?2:1,
+      fillOpacity:0.7,opacity:0.9
+    });
+    
+    marker.bindPopup(`
+      <div class="pop-type" style="color:${color}">${cat.toUpperCase()}</div>
+      <div class="pop-name">${row.location_name}</div>
+      <div class="pop-detail" style="font-style:italic;color:#ccc">"${row.feedback_text}"</div>
+      <div class="pop-detail" style="margin-top:6px">Rating: ${'★'.repeat(Math.round(row.rating||0))}${'☆'.repeat(5-Math.round(row.rating||0))} (${row.rating})</div>
+      <div class="pop-coords">${row.latitude}, ${row.longitude}</div>
+    `,{className:'custom-tooltip',maxWidth:300});
+    
+    marker.bindTooltip(`"${(row.feedback_text||'').substring(0,40)}..."`,{className:'custom-tooltip',direction:'top',offset:[0,-8]});
+    
+    marker._data = row;
+    fbGroup.addLayer(marker);
+    feedbackMarkers.push(marker);
+  });
+}
+
+// ═══════════════════════════════════════
+// UI BUILDERS
+// ═══════════════════════════════════════
+function buildLayerPanel(){
+  const container = document.getElementById('layer-list');
+  
+  // Add feedback layer first
+  const fbItem = createLayerItem('__feedback','Sentiment Reviews',FEEDBACK_COLORS.decay,feedbackMarkers.length);
+  container.appendChild(fbItem);
+  
+  // Sort by count
+  const sorted = Object.entries(allLayers)
+    .filter(([k])=>k!=='__feedback')
+    .map(([k,v])=>[k,v.getLayers?.()?.length || v.getAllChildMarkers?.()?.length || 0])
+    .sort((a,b)=>b[1]-a[1]);
+  
+  sorted.forEach(([type,count])=>{
+    const cfg = getTypeConfig(type);
+    const item = createLayerItem(type,cfg.label,cfg.color,count);
+    container.appendChild(item);
+  });
+}
+
+function createLayerItem(type,label,color,count){
+  const item = document.createElement('div');
+  item.className = 'layer-item';
+  item.innerHTML = `
+    <div class="layer-dot" style="background:${color}"></div>
+    <span class="layer-name">${label}</span>
+    <span class="layer-count">${count}</span>
+  `;
+  item.onclick = ()=>{
+    const layer = allLayers[type];
+    if(!layer) return;
+    if(map.hasLayer(layer)){
+      map.removeLayer(layer);
+      item.classList.add('off');
+    } else {
+      layer.addTo(map);
+      item.classList.remove('off');
+    }
+  };
+  return item;
+}
+
+function buildFeedbackPanel(data){
+  const container = document.getElementById('feedback-list');
+  // Show only highlighted reviews
+  const highlights = data.filter(r=>r.highlight==1).slice(0,20);
+  document.getElementById('fb-count').textContent = `${data.length} reviews · ${highlights.length} highlighted`;
+  
+  highlights.forEach(row=>{
+    const cat = row.category||'impressions';
+    const color = FEEDBACK_COLORS[cat]||'#fff';
+    const div = document.createElement('div');
+    div.className = 'feedback-item';
+    div.innerHTML = `
+      <div class="fb-text">"${row.feedback_text}"</div>
+      <div class="fb-meta">
+        <span>${row.location_name}</span>
+        <span class="fb-cat" style="background:${color}22;color:${color}">${cat}</span>
+      </div>
+    `;
+    div.onclick = ()=>{
+      map.flyTo([row.latitude,row.longitude],16,{duration:1});
+      // Find and open popup
+      feedbackMarkers.forEach(m=>{
+        if(m._data===row) setTimeout(()=>m.openPopup(),1000);
+      });
+    };
+    container.appendChild(div);
+  });
+}
+
+function buildSpectrum(osData,fbData){
+  const bar = document.getElementById('spectrum-bar');
+  // Create entropy spectrum from combined data
+  const segments = [
+    {label:'RUIN',color:TYPE_CONFIG.abandoned?.color||'#ff2d55',count:17},
+    {label:'WASTE',color:TYPE_CONFIG.waste_facility?.color||'#00ff00',count:69},
+    {label:'BROWN',color:TYPE_CONFIG.brownfield?.color||'#ff00e5',count:56},
+    {label:'BUILD',color:TYPE_CONFIG.construction?.color||'#ffe600',count:68},
+    {label:'INDUS',color:TYPE_CONFIG.industrial?.color||'#00f0ff',count:698},
+    {label:'ECO',color:FEEDBACK_COLORS.ecosystem,count:14},
+  ];
+  
+  const max = Math.max(...segments.map(s=>s.count));
+  segments.forEach(s=>{
+    const div = document.createElement('div');
+    div.className = 't-segment';
+    const h = 8 + (s.count/max)*16;
+    div.style.cssText = `background:${s.color}33;border:1px solid ${s.color}44;height:${h}px;color:${s.color}`;
+    div.textContent = s.label;
+    div.title = `${s.label}: ${s.count} sites`;
+    div.onclick = ()=>{
+      // Highlight this type on map
+      const type = Object.entries(TYPE_CONFIG).find(([k,v])=>v.color===s.color);
+      if(type && allLayers[type[0]]){
+        map.fitBounds(allLayers[type[0]].getBounds?.() || map.getBounds(),{padding:[50,50]});
+      }
+    };
+    bar.appendChild(div);
+  });
+}
+
+function updateStats(osData,fbData){
+  const total = osData.length + fbData.length;
+  const decay = osData.filter(r=>r.category==='decay').length + fbData.filter(r=>r.category==='decay').length;
+  animateNumber('s-total',total);
+  animateNumber('s-decay',decay);
+  animateNumber('s-feedback',fbData.length);
+}
+
+function animateNumber(id,target){
+  const el = document.getElementById(id);
+  let current = 0;
+  const step = Math.ceil(target/40);
+  const timer = setInterval(()=>{
+    current = Math.min(current+step,target);
+    el.textContent = current;
+    if(current>=target) clearInterval(timer);
+  },30);
+}
+
+// ═══════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════
+function setupSearch(osData,fbData){
+  const input = document.getElementById('search-input');
+  input.placeholder = `Search ${osData.length + fbData.length} data points...`;
+  
+  let debounce;
+  input.addEventListener('input',()=>{
+    clearTimeout(debounce);
+    debounce = setTimeout(()=>{
+      const q = input.value.toLowerCase().trim();
+      if(!q){
+        // Reset all markers visibility
+        Object.values(allLayers).forEach(l=>{if(!map.hasLayer(l))l.addTo(map)});
+        return;
+      }
+      
+      // Find matching markers and fly to first match
+      const matches = allMarkers.filter(m=>{
+        const d = m._data;
+        return (d.name||'').toLowerCase().includes(q) || 
+               (d.site_type||'').toLowerCase().includes(q) ||
+               (d.category||'').toLowerCase().includes(q);
+      });
+      
+      const fbMatches = feedbackMarkers.filter(m=>{
+        const d = m._data;
+        return (d.feedback_text||'').toLowerCase().includes(q) ||
+               (d.location_name||'').toLowerCase().includes(q) ||
+               (d.category||'').toLowerCase().includes(q);
+      });
+      
+      const allMatches = [...matches,...fbMatches];
+      if(allMatches.length>0){
+        const bounds = L.latLngBounds(allMatches.map(m=>m.getLatLng()));
+        map.flyToBounds(bounds,{padding:[80,80],duration:0.8});
+        // Open first popup
+        setTimeout(()=>allMatches[0].openPopup(),900);
+      }
+    },300);
+  });
+}
+
+// ═══════════════════════════════════════
+// INIT — Load overpass data from textarea
+// ═══════════════════════════════════════
+// Since we can't fetch local files, embed the CSV in a hidden element
+// The user should paste their CSV data here or reference the file
+document.addEventListener('DOMContentLoaded',()=>{
+  const scriptEl = document.getElementById('overpass-data');
+  if(scriptEl){
+    const csvText = scriptEl.textContent;
+    loadOverpassData(csvText).then(osData=>{
+      loadFeedbackData().then(fbData=>{
+        document.getElementById('load-fill').style.width='100%';
+        setTimeout(()=>{
+          overpassData = osData;
+          renderOverpass(osData);
+          renderFeedback(fbData);
+          buildLayerPanel();
+          buildFeedbackPanel(fbData);
+          buildSpectrum(osData,fbData);
+          updateStats(osData,fbData);
+          setupSearch(osData,fbData);
+          document.getElementById('loader').classList.add('done');
+        },800);
+      });
+    });
+  } else {
+    // Try fetching
+    init();
+  }
+});
+</script>
+
+<!-- Embed overpass CSV data here so it works as standalone HTML -->
+<script type="text/csv" id="overpass-data">
+latitude,longitude,name,site_type,category,osm_id,osm_type,landuse,building,source
+51.54486,0.0604,Thames Gateway Waste Facility #01,waste_facility,decay,331354907,node,,,OpenStreetMap Overpass
+51.55209,0.06259,Thames Gateway Waste Facility #02,waste_facility,decay,348626868,node,,,OpenStreetMap Overpass
+51.517,0.07449,Canning Town Waste Facility #01,waste_facility,decay,668087514,node,,,OpenStreetMap Overpass
+51.52392,0.0983,Barking Waste Transfer Station,waste_facility,decay,670379640,node,,,OpenStreetMap Overpass
+51.49152,0.06356,Woolwich Waste Facility #01,waste_facility,decay,1189861430,node,,,OpenStreetMap Overpass
+51.52485,0.06767,Canning Town Waste Facility #02,waste_facility,decay,1454375344,node,,,OpenStreetMap Overpass
+51.51318,0.17384,C5,industrial,infrastructure,2435552731,node,industrial,,OpenStreetMap Overpass
+51.51324,0.17338,C1,industrial,infrastructure,2435552732,node,industrial,,OpenStreetMap Overpass
+51.51323,0.17352,C2,industrial,infrastructure,2435552733,node,industrial,,OpenStreetMap Overpass
+51.51321,0.17371,C3,industrial,infrastructure,2435552734,node,industrial,,OpenStreetMap Overpass
+51.51318,0.17402,C6,industrial,infrastructure,2435552735,node,industrial,,OpenStreetMap Overpass
+51.48174,0.17531,Erith Waste Facility #01,waste_facility,decay,2518919231,node,,,OpenStreetMap Overpass
+51.50425,0.15556,Belvedere Chimney Stack #01,chimney_stack,infrastructure,3028558912,node,,,OpenStreetMap Overpass
+51.54376,0.20886,Bottle Bank,waste_facility,decay,3517308177,node,,,OpenStreetMap Overpass
+51.55138,0.19851,Bottle Bank,waste_facility,decay,3565590113,node,,,OpenStreetMap Overpass
+51.48075,0.18092,Erith Waste Facility #02,waste_facility,decay,4413996313,node,,,OpenStreetMap Overpass
+51.53482,0.21294,Thames Gateway Abandoned Site #01,abandoned,decay,5077487030,node,,bunker,OpenStreetMap Overpass
+51.53461,0.21305,Thames Gateway Abandoned Site #02,abandoned,decay,5078803313,node,,bunker,OpenStreetMap Overpass
+51.51653,0.17376,SITA,waste_facility,decay,5193849124,node,,,OpenStreetMap Overpass
+51.51813,0.09048,Beckton Sewage Works Chimney Stack #01,chimney_stack,infrastructure,6214489041,node,,,OpenStreetMap Overpass
+51.49106,0.15175,Belvedere Waste Facility #01,waste_facility,decay,6432609618,node,,,OpenStreetMap Overpass
+51.51661,0.08607,Beckton Sewage Works Chimney Stack #02,chimney_stack,infrastructure,7858618347,node,,,OpenStreetMap Overpass
+51.51999,0.20235,Rainham Waste Facility #01,waste_facility,decay,7901808968,node,,,OpenStreetMap Overpass
+51.51677,0.19582,Rainham Waste Facility #02,waste_facility,decay,7901808969,node,,,OpenStreetMap Overpass
+51.56006,0.14783,Frizlands Waste Facility #01,waste_facility,decay,8021846714,node,,,OpenStreetMap Overpass
+51.56012,0.14784,Frizlands Waste Facility #02,waste_facility,decay,8021846715,node,,,OpenStreetMap Overpass
+51.56009,0.14783,Frizlands Waste Facility #03,waste_facility,decay,8021846716,node,,,OpenStreetMap Overpass
+51.56014,0.14784,Frizlands Waste Facility #04,waste_facility,decay,8021846717,node,,,OpenStreetMap Overpass
+51.50697,0.06764,Royal Albert Dock Waste Facility #01,waste_facility,decay,8140130864,node,,,OpenStreetMap Overpass
+51.49278,0.06117,Woolwich Waste Facility #02,waste_facility,decay,8180443311,node,,,OpenStreetMap Overpass
+51.51517,0.20212,Rainham Waste Facility #03,waste_facility,decay,8356457869,node,,,OpenStreetMap Overpass
+51.52541,0.06787,Canning Town Waste Facility #03,waste_facility,decay,8817837074,node,,,OpenStreetMap Overpass
+51.52541,0.06817,Canning Town Waste Facility #04,waste_facility,decay,8817837075,node,,,OpenStreetMap Overpass
+51.56237,0.22119,Rainham North Waste Facility #01,waste_facility,decay,9264216302,node,,,OpenStreetMap Overpass
+51.55603,0.20262,Rainham North Waste Facility #02,waste_facility,decay,9264236228,node,,,OpenStreetMap Overpass
+51.49323,0.10961,Thamesmead Waste Facility #01,waste_facility,decay,9528693761,node,,,OpenStreetMap Overpass
+51.52075,0.19161,Rainham Waste Facility #04,waste_facility,decay,9641402343,node,,,OpenStreetMap Overpass
+51.52068,0.19158,Rainham Waste Facility #05,waste_facility,decay,9641402344,node,,,OpenStreetMap Overpass
+51.52069,0.19159,Rainham Waste Facility #06,waste_facility,decay,9641402345,node,,,OpenStreetMap Overpass
+51.52074,0.1916,Rainham Waste Facility #07,waste_facility,decay,9641402346,node,,,OpenStreetMap Overpass
+51.52073,0.1916,Rainham Waste Facility #08,waste_facility,decay,9641402347,node,,,OpenStreetMap Overpass
+51.52072,0.1916,Rainham Waste Facility #09,waste_facility,decay,9641402348,node,,,OpenStreetMap Overpass
+51.52071,0.19159,Rainham Waste Facility #10,waste_facility,decay,9641402349,node,,,OpenStreetMap Overpass
+51.5163,0.08718,Beckton Sewage Works Chimney Stack #03,chimney_stack,infrastructure,9904525555,node,,,OpenStreetMap Overpass
+51.51553,0.08923,Beckton Sewage Works Chimney Stack #04,chimney_stack,infrastructure,9904525760,node,,,OpenStreetMap Overpass
+51.5191,0.08528,Beckton Sewage Works Chimney Stack #05,chimney_stack,infrastructure,9904525807,node,,,OpenStreetMap Overpass
+51.51993,0.08694,Beckton Sewage Works Chimney Stack #06,chimney_stack,infrastructure,9904525808,node,,,OpenStreetMap Overpass
+51.51964,0.0853,Beckton Sewage Works Chimney Stack #07,chimney_stack,infrastructure,9904525813,node,,,OpenStreetMap Overpass
+51.51754,0.08773,Beckton Sewage Works Chimney Stack #08,chimney_stack,infrastructure,9904525955,node,,,OpenStreetMap Overpass
+51.51757,0.08751,Beckton Sewage Works Chimney Stack #09,chimney_stack,infrastructure,9904525956,node,,,OpenStreetMap Overpass
+51.5176,0.08727,Beckton Sewage Works Chimney Stack #10,chimney_stack,infrastructure,9904525957,node,,,OpenStreetMap Overpass
+51.51763,0.08704,Beckton Sewage Works Chimney Stack #11,chimney_stack,infrastructure,9904525958,node,,,OpenStreetMap Overpass
+51.51766,0.08681,Beckton Sewage Works Chimney Stack #12,chimney_stack,infrastructure,9904525959,node,,,OpenStreetMap Overpass
+51.51956,0.08141,Beckton Sewage Works Chimney Stack #13,chimney_stack,infrastructure,9906209752,node,,,OpenStreetMap Overpass
+51.51561,0.09083,Beckton Sewage Works Chimney Stack #14,chimney_stack,infrastructure,9906209756,node,,,OpenStreetMap Overpass
+51.52784,0.06036,Canning Town Waste Facility #05,waste_facility,decay,10278285334,node,,,OpenStreetMap Overpass
+51.53974,0.10087,Ripple Road Waste Facility #01,waste_facility,decay,10569084938,node,,,OpenStreetMap Overpass
+51.53455,0.06536,Thames Gateway Waste Facility #03,waste_facility,decay,10579792398,node,,,OpenStreetMap Overpass
+51.56147,0.06932,British Heart Foundation,waste_facility,decay,10582631407,node,,,OpenStreetMap Overpass
+51.55076,0.07445,Thames Gateway Waste Facility #04,waste_facility,decay,10606372909,node,,,OpenStreetMap Overpass
+51.54544,0.09402,Thames Gateway Waste Facility #05,waste_facility,decay,10695526034,node,,,OpenStreetMap Overpass
+51.53831,0.07511,Barking Waste Facility #01,waste_facility,decay,10704793426,node,,,OpenStreetMap Overpass
+51.56413,0.09693,Thames Gateway Waste Facility #06,waste_facility,decay,11203673993,node,,,OpenStreetMap Overpass
+51.52073,0.19267,Rainham Waste Facility #11,waste_facility,decay,11965377327,node,,,OpenStreetMap Overpass
+51.52073,0.19271,Rainham Waste Facility #12,waste_facility,decay,11965377328,node,,,OpenStreetMap Overpass
+51.52072,0.19274,Rainham Waste Facility #13,waste_facility,decay,11965377329,node,,,OpenStreetMap Overpass
+51.56897,0.1607,Crow Metals,waste_facility,decay,12270307012,node,,,OpenStreetMap Overpass
+51.49588,0.07573,Woolwich Chimney Stack #01,chimney_stack,infrastructure,12463852208,node,,,OpenStreetMap Overpass
+51.53498,0.0724,Thames Gateway Waste Facility #07,waste_facility,decay,13462150689,node,,,OpenStreetMap Overpass
+51.53502,0.07241,Thames Gateway Waste Facility #08,waste_facility,decay,13462155378,node,,,OpenStreetMap Overpass
+51.535,0.07242,Thames Gateway Waste Facility #09,waste_facility,decay,13462182015,node,,,OpenStreetMap Overpass
+51.53603,0.07076,Thames Gateway Waste Facility #10,waste_facility,decay,13468094838,node,,,OpenStreetMap Overpass
+51.53604,0.07078,Thames Gateway Waste Facility #11,waste_facility,decay,13468094839,node,,,OpenStreetMap Overpass
+51.53605,0.07082,Thames Gateway Waste Facility #12,waste_facility,decay,13468094841,node,,,OpenStreetMap Overpass
+51.52019,0.10831,TRAID,waste_facility,decay,13541357887,node,,,OpenStreetMap Overpass
+51.56478,0.1017,Thames Gateway Industrial Site #01,industrial,infrastructure,4263377,way,industrial,,OpenStreetMap Overpass
+51.56759,0.13431,Thames Gateway Industrial Site #02,industrial,infrastructure,4263402,way,industrial,,OpenStreetMap Overpass
+51.49504,0.14798,Belvedere Industrial Site #01,industrial,infrastructure,5019548,way,industrial,,OpenStreetMap Overpass
+51.48893,0.12902,Lesnes Abbey,ruins,decay,5180817,way,,,OpenStreetMap Overpass
+51.49377,0.14905,Belvedere Brownfield #01,brownfield,decay,5193729,way,brownfield,,OpenStreetMap Overpass
+51.53105,0.116,Ripple Road Industrial Site #01,industrial,infrastructure,13511780,way,industrial,,OpenStreetMap Overpass
+51.53051,0.11155,Ripple Road Warehouse #01,warehouse,infrastructure,13512887,way,,warehouse,OpenStreetMap Overpass
+51.51967,0.08363,Beckton Sewage Treatment Works,sewage,decay,17506884,way,industrial,,OpenStreetMap Overpass
+51.51916,0.14657,Dagenham Dock Industrial Site #01,industrial,infrastructure,18926561,way,industrial,,OpenStreetMap Overpass
+51.52549,0.1077,River Road North Industrial Site #01,industrial,infrastructure,18929372,way,industrial,,OpenStreetMap Overpass
+51.52695,0.08865,Kingsbridge Wharf,industrial,infrastructure,18932488,way,industrial,,OpenStreetMap Overpass
+51.53354,0.10415,Ripple Road Industrial Site #02,industrial,infrastructure,18935440,way,industrial,,OpenStreetMap Overpass
+51.56934,0.15853,Thames Gateway Industrial Site #03,industrial,infrastructure,22793566,way,industrial,,OpenStreetMap Overpass
+51.57,0.16564,Thames Gateway Industrial Site #04,industrial,infrastructure,22795403,way,industrial,,OpenStreetMap Overpass
+51.53286,0.17554,Mardyke Farm Landfill,landfill,decay,23023226,way,landfill,,OpenStreetMap Overpass
+51.53724,0.17313,Sterling Industrial Estate Industrial Site #01,industrial,infrastructure,23023314,way,industrial,,OpenStreetMap Overpass
+51.5184,0.18111,Riverside Sewage Treatment Works,sewage,decay,23070525,way,,,OpenStreetMap Overpass
+51.52823,0.15065,Dagenham Green (Peabody),construction,infrastructure,23070594,way,construction,,OpenStreetMap Overpass
+51.54609,0.1702,Thames Gateway Industrial Site #05,industrial,infrastructure,23141792,way,industrial,,OpenStreetMap Overpass
+51.51786,0.07047,Britvic,industrial_building,infrastructure,26520776,way,,industrial,OpenStreetMap Overpass
+51.51607,0.07016,Roding Road,industrial_building,infrastructure,26520968,way,,industrial,OpenStreetMap Overpass
+51.51596,0.07123,Roding Road,industrial_building,infrastructure,26520988,way,,industrial,OpenStreetMap Overpass
+51.52081,0.06281,Claps Gate Lane,industrial_building,infrastructure,27246400,way,,industrial,OpenStreetMap Overpass
+51.51967,0.10204,River Road Industrial Site #01,industrial,infrastructure,28293816,way,industrial,,OpenStreetMap Overpass
+51.50485,0.14158,Crossness Sewage Treatment Works,sewage,decay,29120021,way,,,OpenStreetMap Overpass
+51.49844,0.15884,Belvedere Industrial Building #01,industrial_building,infrastructure,29120134,way,,industrial,OpenStreetMap Overpass
+51.49792,0.16102,Belvedere Industrial Building #02,industrial_building,infrastructure,29120138,way,,industrial,OpenStreetMap Overpass
+51.50503,0.15392,Belvedere Incinerator,industrial,infrastructure,29120163,way,industrial,,OpenStreetMap Overpass
+51.50151,0.16702,Thames Gateway Industrial Building #01,industrial_building,infrastructure,29120179,way,,industrial,OpenStreetMap Overpass
+51.50121,0.16788,Thames Gateway Industrial Building #02,industrial_building,infrastructure,29120185,way,,industrial,OpenStreetMap Overpass
+51.50072,0.16731,Thames Gateway Industrial Building #03,industrial_building,infrastructure,29120187,way,,industrial,OpenStreetMap Overpass
+51.50014,0.16666,Thames Gateway Industrial Building #04,industrial_building,infrastructure,29120188,way,,industrial,OpenStreetMap Overpass
+51.50032,0.16366,HTC Belvedere,industrial_building,infrastructure,29120197,way,,industrial,OpenStreetMap Overpass
+51.49886,0.16702,Erith Industrial Building #01,industrial_building,infrastructure,29120199,way,,industrial,OpenStreetMap Overpass
+51.49915,0.16814,Erith Industrial Building #02,industrial_building,infrastructure,29120203,way,,industrial,OpenStreetMap Overpass
+51.49934,0.169,Erith Industrial Building #03,industrial_building,infrastructure,29120211,way,,industrial,OpenStreetMap Overpass
+51.49979,0.16372,Tuffnells Parcels Express,warehouse,infrastructure,29120229,way,,warehouse,OpenStreetMap Overpass
+51.49887,0.16335,Crabtree Manorway North,industrial_building,infrastructure,29120292,way,,industrial,OpenStreetMap Overpass
+51.49889,0.16959,Erith Industrial Building #04,industrial_building,infrastructure,29120358,way,,industrial,OpenStreetMap Overpass
+51.49906,0.16993,Erith Industrial Building #05,industrial_building,infrastructure,29120360,way,,industrial,OpenStreetMap Overpass
+51.49493,0.16393,Ocado Customer Fulfillment Centre,warehouse,infrastructure,29120415,way,,warehouse,OpenStreetMap Overpass
+51.49257,0.16557,Erith Industrial Building #06,industrial_building,infrastructure,29120417,way,,industrial,OpenStreetMap Overpass
+51.49193,0.16451,Belvedere Industrial Building #03,industrial_building,infrastructure,29120418,way,,industrial,OpenStreetMap Overpass
+51.49487,0.16145,Belvedere Industrial Building #04,industrial_building,infrastructure,29120437,way,,industrial,OpenStreetMap Overpass
+51.49151,0.16672,Erith Industrial Building #07,industrial_building,infrastructure,29120456,way,,industrial,OpenStreetMap Overpass
+51.49185,0.16761,Erith Industrial Building #08,industrial_building,infrastructure,29120459,way,,industrial,OpenStreetMap Overpass
+51.49338,0.16933,Erith Industrial Building #09,industrial_building,infrastructure,29120464,way,,industrial,OpenStreetMap Overpass
+51.49189,0.171,Edible oils,warehouse,infrastructure,29120465,way,,warehouse,OpenStreetMap Overpass
+51.49039,0.16629,Erith Industrial Building #10,industrial_building,infrastructure,29120472,way,,industrial,OpenStreetMap Overpass
+51.48899,0.17076,Ocado General Merchandise Distribution Centre,warehouse,infrastructure,29120478,way,,warehouse,OpenStreetMap Overpass
+51.50616,0.13357,Thames Water Sewage Pumping Station,industrial_building,infrastructure,29232464,way,,industrial,OpenStreetMap Overpass
+51.50488,0.14109,Sludge Pumping Station,industrial_building,infrastructure,29232466,way,,industrial,OpenStreetMap Overpass
+51.50883,0.13928,Storm Water Pumping Station,industrial_building,infrastructure,29232471,way,,industrial,OpenStreetMap Overpass
+51.50854,0.13887,Crossness Industrial Building #01,industrial_building,infrastructure,29232472,way,,industrial,OpenStreetMap Overpass
+51.50537,0.14702,Crossness Sewage Incinerator,industrial_building,infrastructure,29232478,way,,industrial,OpenStreetMap Overpass
+51.55669,0.06257,Tunnelling and Underground Construction Academy,industrial,infrastructure,29465049,way,industrial,,OpenStreetMap Overpass
+51.56882,0.11828,Thames Gateway Industrial Site #06,industrial,infrastructure,29908885,way,industrial,,OpenStreetMap Overpass
+51.54656,0.0942,Thames Gateway Industrial Site #07,industrial,infrastructure,30327515,way,industrial,,OpenStreetMap Overpass
+51.54656,0.09391,Barking Bus Garage,industrial,infrastructure,30327519,way,industrial,bus_garage,OpenStreetMap Overpass
+51.54105,0.06458,Thames Gateway Industrial Site #08,industrial,infrastructure,30693058,way,industrial,,OpenStreetMap Overpass
+51.54001,0.06868,Thames Gateway Industrial Site #09,industrial,infrastructure,30694689,way,industrial,,OpenStreetMap Overpass
+51.52435,0.07696,Jenkins Lane Reuse and Recycling Centre,waste_facility,decay,31928679,way,industrial,,OpenStreetMap Overpass
+51.49547,0.09813,Thamesmead West Industrial Site #01,industrial,infrastructure,35481121,way,industrial,,OpenStreetMap Overpass
+51.49753,0.10733,Thamesmead Industrial Building #01,industrial_building,infrastructure,35481150,way,,industrial,OpenStreetMap Overpass
+51.49711,0.10804,Thamesmead Industrial Site #01,industrial,infrastructure,35481153,way,industrial,,OpenStreetMap Overpass
+51.52145,0.14719,Chequers Lane Industrial Building #01,industrial_building,infrastructure,36803322,way,,industrial,OpenStreetMap Overpass
+51.49138,0.07531,Woolwich Industrial Site #01,industrial,infrastructure,37745545,way,industrial,yes,OpenStreetMap Overpass
+51.49205,0.07591,Woolwich Industrial Site #02,industrial,infrastructure,37745558,way,industrial,yes,OpenStreetMap Overpass
+51.48954,0.19546,Rainham Plastics Recycling Facility,industrial_building,infrastructure,41960240,way,,industrial,OpenStreetMap Overpass
+51.52681,0.15577,Beam Park - Phases 4-8,construction,infrastructure,44794819,way,construction,,OpenStreetMap Overpass
+51.5287,0.06887,Newham Central Depot,industrial,infrastructure,48700374,way,industrial,,OpenStreetMap Overpass
+51.51761,0.06753,London Industrial Park,industrial,infrastructure,48734541,way,industrial,,OpenStreetMap Overpass
+51.52563,0.10017,Brownings,industrial_building,infrastructure,52876935,way,,industrial,OpenStreetMap Overpass
+51.52569,0.10075,Thames Road,industrial_building,infrastructure,52876936,way,,industrial,OpenStreetMap Overpass
+51.52563,0.10108,Thames Road,industrial_building,infrastructure,52876937,way,,industrial,OpenStreetMap Overpass
+51.52556,0.10148,River Road North Industrial Building #01,industrial_building,infrastructure,52876938,way,,industrial,OpenStreetMap Overpass
+51.52487,0.10257,River Road North Industrial Building #02,industrial_building,infrastructure,52876950,way,,industrial,OpenStreetMap Overpass
+51.52483,0.10041,CNC Building Supplies,industrial_building,infrastructure,52876952,way,,industrial,OpenStreetMap Overpass
+51.52495,0.09955,Oasis Banqueting,industrial_building,infrastructure,52876953,way,,industrial,OpenStreetMap Overpass
+51.52449,0.10233,Virdee Automobile Engineers,industrial_building,infrastructure,52876966,way,,industrial,OpenStreetMap Overpass
+51.52529,0.1128,Thames Road,industrial_building,infrastructure,52876968,way,,industrial,OpenStreetMap Overpass
+51.52745,0.09319,North Building,warehouse,infrastructure,52882458,way,,warehouse,OpenStreetMap Overpass
+51.52539,0.102,Thames Road,industrial_building,infrastructure,52882469,way,,industrial,OpenStreetMap Overpass
+51.52534,0.10432,River Road North Industrial Building #03,industrial_building,infrastructure,52882475,way,,industrial,OpenStreetMap Overpass
+51.52525,0.10565,River Road North Industrial Building #04,industrial_building,infrastructure,52882482,way,,industrial,OpenStreetMap Overpass
+51.49561,0.1618,OYO Business Units,industrial,infrastructure,53203623,way,industrial,,OpenStreetMap Overpass
+51.56924,0.18838,Thames Gateway Industrial Site #10,industrial,infrastructure,56175698,way,industrial,,OpenStreetMap Overpass
+51.53865,0.07116,East Ham Water Treatment Works,industrial,infrastructure,58476180,way,industrial,,OpenStreetMap Overpass
+51.56833,0.14167,Thames Gateway Industrial Site #11,industrial,infrastructure,60034257,way,industrial,,OpenStreetMap Overpass
+51.5216,0.18247,Mudlands Industrial Park,industrial,infrastructure,60085303,way,industrial,,OpenStreetMap Overpass
+51.51993,0.15684,Swap Body Pitch,industrial,infrastructure,60085314,way,industrial,,OpenStreetMap Overpass
+51.5255,0.19153,Dagenham East Industrial Site #01,industrial,infrastructure,60105670,way,industrial,,OpenStreetMap Overpass
+51.49585,0.0985,Thamesmead West Industrial Building #01,industrial_building,infrastructure,96583286,way,,industrial,OpenStreetMap Overpass
+51.49153,0.08364,Plumstead Bus Garage,industrial_building,infrastructure,96583287,way,,industrial,OpenStreetMap Overpass
+51.49545,0.09765,Greenwich Materials Recovery Facility,industrial_building,infrastructure,96583290,way,,industrial,OpenStreetMap Overpass
+51.49761,0.10588,Nathan Way,industrial_building,infrastructure,96584366,way,,industrial,OpenStreetMap Overpass
+51.52892,0.13833,Eddie Stobart,industrial,infrastructure,102198678,way,industrial,,OpenStreetMap Overpass
+51.49142,0.07406,Woolwich Construction Site #01,construction,infrastructure,103151803,way,construction,,OpenStreetMap Overpass
+51.54925,0.15656,Dagenham North Industrial Site #01,industrial,infrastructure,155241323,way,industrial,,OpenStreetMap Overpass
+51.51505,0.08516,Gemini Business Park,industrial,infrastructure,172886846,way,industrial,,OpenStreetMap Overpass
+51.51675,0.14259,Dagenham Dock Industrial Building #01,industrial_building,infrastructure,177036083,way,,industrial,OpenStreetMap Overpass
+51.51991,0.14187,Dagenham Dock Industrial Building #02,industrial_building,infrastructure,177036254,way,,industrial,OpenStreetMap Overpass
+51.51998,0.14158,Dagenham Dock Industrial Building #03,industrial_building,infrastructure,177036256,way,,industrial,OpenStreetMap Overpass
+51.52016,0.14163,Chequers Lane Industrial Building #02,industrial_building,infrastructure,177036258,way,,industrial,OpenStreetMap Overpass
+51.52052,0.14184,Chequers Lane Industrial Building #03,industrial_building,infrastructure,177036259,way,,industrial,OpenStreetMap Overpass
+51.52099,0.14382,Chequers Lane Industrial Building #04,industrial_building,infrastructure,177036262,way,,industrial,OpenStreetMap Overpass
+51.52018,0.14235,Chequers Lane Industrial Building #05,industrial_building,infrastructure,177036264,way,,industrial,OpenStreetMap Overpass
+51.52124,0.14023,Paragon,industrial_building,infrastructure,177036265,way,,industrial,OpenStreetMap Overpass
+51.52026,0.14282,Chequers Lane Industrial Building #06,industrial_building,infrastructure,177036266,way,,industrial,OpenStreetMap Overpass
+51.51552,0.18738,F. H. Brundle,industrial_distributor,infrastructure,182427295,way,,yes,OpenStreetMap Overpass
+51.50123,0.18227,Thames Gateway Industrial Building #05,industrial_building,infrastructure,182783854,way,,industrial,OpenStreetMap Overpass
+51.50106,0.18102,Tilda,industrial_building,infrastructure,182783856,way,,industrial,OpenStreetMap Overpass
+51.5223,0.16597,Tesco Distribution Centre,warehouse,infrastructure,183157116,way,,warehouse,OpenStreetMap Overpass
+51.50984,0.21158,Thames Gateway Industrial Site #12,industrial,infrastructure,183214567,way,industrial,,OpenStreetMap Overpass
+51.50896,0.20467,Thames Gateway Industrial Site #13,industrial,infrastructure,183400054,way,industrial,,OpenStreetMap Overpass
+51.5159,0.22091,Arnolds Field,industrial,infrastructure,183480487,way,industrial,,OpenStreetMap Overpass
+51.55856,0.15671,Frizlands Lane Reuse and Recycling Centre,waste_facility,decay,183994892,way,industrial,,OpenStreetMap Overpass
+51.53141,0.11838,Ripple Road Warehouse #02,warehouse,infrastructure,193980672,way,,warehouse,OpenStreetMap Overpass
+51.5305,0.11906,Renwick Road,warehouse,infrastructure,193981223,way,,warehouse,OpenStreetMap Overpass
+51.53116,0.10948,Ripple Road Warehouse #03,warehouse,infrastructure,193981570,way,,warehouse,OpenStreetMap Overpass
+51.49959,0.06031,Store Road Pumping Station,industrial,infrastructure,196384564,way,industrial,,OpenStreetMap Overpass
+51.50239,0.14548,Belvedere Industrial Building #05,industrial_building,infrastructure,209700052,way,,industrial,OpenStreetMap Overpass
+51.52317,0.14472,Hovis Dagenham RDC,industrial_building,infrastructure,219175459,way,,industrial,OpenStreetMap Overpass
+51.50301,0.07109,Royal Albert Dock Industrial Building #01,industrial_building,infrastructure,222302897,way,,industrial,OpenStreetMap Overpass
+51.50248,0.07335,Royal Albert Dock Industrial Building #02,industrial_building,infrastructure,222302901,way,,industrial,OpenStreetMap Overpass
+51.50309,0.07077,Royal Albert Dock Industrial Building #03,industrial_building,infrastructure,222302902,way,,industrial,OpenStreetMap Overpass
+51.50265,0.07343,Royal Albert Dock Industrial Building #04,industrial_building,infrastructure,222302903,way,,industrial,OpenStreetMap Overpass
+51.50257,0.07338,Royal Albert Dock Industrial Building #05,industrial_building,infrastructure,222302907,way,,industrial,OpenStreetMap Overpass
+51.50427,0.07648,Royal Albert Dock Industrial Building #06,industrial_building,infrastructure,222312833,way,,industrial,OpenStreetMap Overpass
+51.50108,0.06909,Royal Albert Dock Brownfield #01,brownfield,decay,222877097,way,brownfield,,OpenStreetMap Overpass
+51.5617,0.08379,Ilford Recycling Centre,waste_facility,decay,226891875,way,,,OpenStreetMap Overpass
+51.49002,0.1955,Rainham Materials Recycling Facility,industrial_building,infrastructure,231510054,way,,industrial,OpenStreetMap Overpass
+51.48117,0.16261,The Quarry,construction,infrastructure,256176983,way,construction,,OpenStreetMap Overpass
+51.48974,0.16734,Erith Industrial Building #11,industrial_building,infrastructure,298887724,way,,industrial,OpenStreetMap Overpass
+51.49264,0.16926,Erith Industrial Building #12,industrial_building,infrastructure,298887729,way,,industrial,OpenStreetMap Overpass
+51.50453,0.15481,Belvedere Industrial Building #06,industrial_building,infrastructure,298890139,way,,industrial,OpenStreetMap Overpass
+51.49533,0.16175,Belvedere Industrial Building #07,industrial_building,infrastructure,298912294,way,,industrial,OpenStreetMap Overpass
+51.49534,0.15924,Belvedere Industrial Building #08,industrial_building,infrastructure,298912298,way,,industrial,OpenStreetMap Overpass
+51.49836,0.1641,Belvedere Industrial Building #09,industrial_building,infrastructure,298912299,way,,industrial,OpenStreetMap Overpass
+51.49521,0.15832,Belvedere Industrial Building #10,industrial_building,infrastructure,298912300,way,,industrial,OpenStreetMap Overpass
+51.49577,0.16186,Belvedere Industrial Building #11,industrial_building,infrastructure,298912301,way,,industrial,OpenStreetMap Overpass
+51.49817,0.16023,Belvedere Industrial Building #12,industrial_building,infrastructure,298912302,way,,industrial,OpenStreetMap Overpass
+51.49339,0.15724,Belvedere Industrial Building #13,industrial_building,infrastructure,298912303,way,,industrial,OpenStreetMap Overpass
+51.49493,0.15918,Belvedere Industrial Building #14,industrial_building,infrastructure,298912304,way,,industrial,OpenStreetMap Overpass
+51.50176,0.18131,Thames Gateway Industrial Building #06,industrial_building,infrastructure,307556141,way,,industrial,OpenStreetMap Overpass
+51.5015,0.18073,Thames Gateway Industrial Building #07,industrial_building,infrastructure,307556142,way,,industrial,OpenStreetMap Overpass
+51.5015,0.18102,Thames Gateway Industrial Building #08,industrial_building,infrastructure,307556143,way,,industrial,OpenStreetMap Overpass
+51.50189,0.18161,Thames Gateway Industrial Building #09,industrial_building,infrastructure,307556144,way,,industrial,OpenStreetMap Overpass
+51.50199,0.18179,Thames Gateway Industrial Building #10,industrial_building,infrastructure,307556145,way,,industrial,OpenStreetMap Overpass
+51.50169,0.18118,Thames Gateway Industrial Building #11,industrial_building,infrastructure,307556146,way,,industrial,OpenStreetMap Overpass
+51.50143,0.1809,Thames Gateway Industrial Building #12,industrial_building,infrastructure,307556147,way,,industrial,OpenStreetMap Overpass
+51.50163,0.18104,Thames Gateway Industrial Building #13,industrial_building,infrastructure,307556148,way,,industrial,OpenStreetMap Overpass
+51.50183,0.18147,Thames Gateway Industrial Building #14,industrial_building,infrastructure,307556149,way,,industrial,OpenStreetMap Overpass
+51.50156,0.18088,Thames Gateway Industrial Building #15,industrial_building,infrastructure,307556150,way,,industrial,OpenStreetMap Overpass
+51.50207,0.18199,Thames Gateway Industrial Building #16,industrial_building,infrastructure,307556151,way,,industrial,OpenStreetMap Overpass
+51.50141,0.1814,Thames Gateway Industrial Building #17,industrial_building,infrastructure,307556154,way,,industrial,OpenStreetMap Overpass
+51.5011,0.18163,Thames Gateway Industrial Building #18,industrial_building,infrastructure,307556156,way,,industrial,OpenStreetMap Overpass
+51.50087,0.18184,Thames Gateway Industrial Building #19,industrial_building,infrastructure,307556160,way,,industrial,OpenStreetMap Overpass
+51.50089,0.18198,Thames Gateway Industrial Building #20,industrial_building,infrastructure,307556161,way,,industrial,OpenStreetMap Overpass
+51.49226,0.06704,Woolwich Brownfield #01,brownfield,decay,308128763,way,brownfield,,OpenStreetMap Overpass
+51.53808,0.0767,Barking Construction Site #01,construction,infrastructure,313769062,way,construction,,OpenStreetMap Overpass
+51.53895,0.07929,Barking Construction Site #02,construction,infrastructure,313951423,way,construction,,OpenStreetMap Overpass
+51.54904,0.16208,Bonians Quality Sausages,industrial_building,infrastructure,314137291,way,,industrial,OpenStreetMap Overpass
+51.54938,0.16166,Gold's Gym,industrial_building,infrastructure,314137292,way,,industrial,OpenStreetMap Overpass
+51.54929,0.16006,Sterling Centre,industrial,infrastructure,314137294,way,industrial,,OpenStreetMap Overpass
+51.54885,0.16195,Sterling Works,industrial,infrastructure,314137295,way,industrial,,OpenStreetMap Overpass
+51.54909,0.16152,Dagenham North Industrial Building #01,industrial_building,infrastructure,314137298,way,,industrial,OpenStreetMap Overpass
+51.54842,0.16193,Dagenham North Industrial Building #02,industrial_building,infrastructure,314137304,way,,industrial,OpenStreetMap Overpass
+51.5374,0.08156,Vicarage Field Health Centre,abandoned,decay,314651783,way,,yes,OpenStreetMap Overpass
+51.5225,0.07647,Beckton Sewage Works Construction Site #01,construction,infrastructure,316688335,way,construction,,OpenStreetMap Overpass
+51.52622,0.0804,Valor Park East Circular Phase 2,industrial_distribution,infrastructure,316694055,way,industrial,,OpenStreetMap Overpass
+51.51535,0.08429,Evri,industrial_building,infrastructure,316743736,way,,industrial,OpenStreetMap Overpass
+51.51501,0.08459,FedEx,industrial_building,infrastructure,316743737,way,,industrial,OpenStreetMap Overpass
+51.51631,0.08358,Parcelforce Worldwide,industrial_building,infrastructure,316743738,way,,industrial,OpenStreetMap Overpass
+51.51631,0.08498,Chan Brothers,industrial_building,infrastructure,316743739,way,,industrial,OpenStreetMap Overpass
+51.51473,0.08484,Gemini Business Park,industrial_building,infrastructure,316743740,way,,industrial,OpenStreetMap Overpass
+51.51464,0.08529,Pulse Bodyworks,industrial_building,infrastructure,316743741,way,,industrial,OpenStreetMap Overpass
+51.51454,0.08501,Capital Crispin Veneer,industrial_building,infrastructure,316743742,way,,industrial,OpenStreetMap Overpass
+51.51483,0.08512,Gemini Business Park,industrial_building,infrastructure,316743743,way,,industrial,OpenStreetMap Overpass
+51.54523,0.06828,Agridutt International Ltd Mushroom Farm,industrial,infrastructure,318793358,way,industrial,,OpenStreetMap Overpass
+51.493,0.11902,Thamesmead Industrial Building #02,industrial_building,infrastructure,329461744,way,,industrial,OpenStreetMap Overpass
+51.49236,0.1186,Thamesmead Industrial Building #03,industrial_building,infrastructure,329461765,way,,industrial,OpenStreetMap Overpass
+51.49237,0.11929,Thamesmead Industrial Building #04,industrial_building,infrastructure,329461876,way,,industrial,OpenStreetMap Overpass
+51.54862,0.19971,Hornchurch Waste Facility #01,waste_facility,decay,350808674,way,,,OpenStreetMap Overpass
+51.54565,0.21596,Hornchurch Brownfield #01,brownfield,decay,351098783,way,brownfield,,OpenStreetMap Overpass
+51.52932,0.08479,Thames Gateway Industrial Site #14,industrial,infrastructure,364409262,way,industrial,,OpenStreetMap Overpass
+51.52542,0.11013,Amazon DRM4,industrial,infrastructure,402788225,way,industrial,,OpenStreetMap Overpass
+51.52883,0.09509,Lyon Business Park,industrial,infrastructure,402788229,way,industrial,,OpenStreetMap Overpass
+51.52533,0.11278,PartsPlaza(UK) Ltd,industrial,infrastructure,402788230,way,industrial,,OpenStreetMap Overpass
+51.52576,0.09739,Thames Road,industrial,infrastructure,402788237,way,industrial,,OpenStreetMap Overpass
+51.52264,0.09721,River Road Bus Garage,industrial,infrastructure,402788246,way,industrial,,OpenStreetMap Overpass
+51.52889,0.09583,River Road North Warehouse #01,warehouse,infrastructure,402788260,way,,warehouse,OpenStreetMap Overpass
+51.52557,0.10509,Barking Business Centre,industrial,infrastructure,402788303,way,industrial,,OpenStreetMap Overpass
+51.5255,0.09571,Independent Fleet Care Ltd,industrial,infrastructure,402788304,way,industrial,,OpenStreetMap Overpass
+51.52573,0.09992,River Road North Industrial Site #02,industrial,infrastructure,402792062,way,industrial,,OpenStreetMap Overpass
+51.51764,0.10897,Barking West Substation,industrial,infrastructure,402804645,way,industrial,,OpenStreetMap Overpass
+51.50909,0.13839,Crossness Pumping Station,industrial_building,infrastructure,403976017,way,,industrial,OpenStreetMap Overpass
+51.50566,0.13331,Crossness Industrial Building #02,industrial_building,infrastructure,403979806,way,,industrial,OpenStreetMap Overpass
+51.51836,0.09993,London City Bond,industrial_building,infrastructure,405202897,way,,industrial,OpenStreetMap Overpass
+51.51672,0.10125,KWS Imports,warehouse,infrastructure,405202898,way,,warehouse,OpenStreetMap Overpass
+51.51506,0.18489,Rainham Bus Garage,industrial_bus_depot,infrastructure,411323531,way,industrial,,OpenStreetMap Overpass
+51.53447,0.07427,Thames Gateway Construction Site #01,construction,infrastructure,411920541,way,construction,,OpenStreetMap Overpass
+51.53209,0.11343,Barking Bus Garage (Arriva),industrial,infrastructure,412420566,way,industrial,,OpenStreetMap Overpass
+51.52278,0.1426,Kuehne+Nagel,industrial_building,infrastructure,413173157,way,,industrial,OpenStreetMap Overpass
+51.52309,0.14471,Chequers Lane Industrial Site #01,industrial,infrastructure,413173158,way,industrial,,OpenStreetMap Overpass
+51.52257,0.13506,Veolia,industrial_building,infrastructure,413173159,way,,industrial,OpenStreetMap Overpass
+51.5396,0.06807,Thames Gateway Industrial Building #21,industrial_building,infrastructure,414829396,way,,industrial,OpenStreetMap Overpass
+51.53847,0.0684,Thames Gateway Industrial Building #22,industrial_building,infrastructure,414829397,way,,industrial,OpenStreetMap Overpass
+51.54013,0.06895,Thames Gateway Industrial Building #23,industrial_building,infrastructure,414829399,way,,industrial,OpenStreetMap Overpass
+51.53969,0.06835,Hertford Road,industrial_building,infrastructure,414829402,way,,industrial,OpenStreetMap Overpass
+51.53944,0.06762,Thames Gateway Industrial Building #24,industrial_building,infrastructure,414829712,way,,industrial,OpenStreetMap Overpass
+51.52981,0.07907,Thames Gateway Warehouse #01,warehouse,infrastructure,416159772,way,,warehouse,OpenStreetMap Overpass
+51.50051,0.16395,HTC Belvedere,industrial,infrastructure,417527975,way,industrial,,OpenStreetMap Overpass
+51.49984,0.16368,Tuffnells Parcels Express,industrial,infrastructure,417527976,way,industrial,,OpenStreetMap Overpass
+51.49499,0.1224,Peabody development,construction,infrastructure,430395763,way,construction,,OpenStreetMap Overpass
+51.4923,0.12185,Peabody development,construction,infrastructure,430395764,way,construction,,OpenStreetMap Overpass
+51.52451,0.14125,City Hire,industrial_building,infrastructure,435958792,way,,industrial,OpenStreetMap Overpass
+51.52394,0.1411,Gondrand,industrial_building,infrastructure,435958793,way,,industrial,OpenStreetMap Overpass
+51.52441,0.14274,S P X,industrial_building,infrastructure,435958794,way,,industrial,OpenStreetMap Overpass
+51.5239,0.14278,"Thames Gateway Park, Chequers Lane",industrial_building,infrastructure,435958795,way,,industrial,OpenStreetMap Overpass
+51.52296,0.14107,Monolith,industrial_building,infrastructure,435958796,way,,industrial,OpenStreetMap Overpass
+51.52377,0.14668,Chequers Lane Industrial Building #07,industrial_building,infrastructure,435958809,way,,industrial,OpenStreetMap Overpass
+51.51905,0.14417,Ocado,warehouse,infrastructure,435958812,way,,warehouse,OpenStreetMap Overpass
+51.51905,0.14561,Dagenham Dock Industrial Building #04,industrial_building,infrastructure,435958816,way,,industrial,OpenStreetMap Overpass
+51.52435,0.14372,Unit 10,industrial_building,infrastructure,435972082,way,,industrial,OpenStreetMap Overpass
+51.52429,0.14429,Dg3 Group Holdings Limited,industrial_building,infrastructure,435972083,way,,industrial,OpenStreetMap Overpass
+51.52416,0.14573,Moo,industrial_building,infrastructure,435972084,way,,industrial,OpenStreetMap Overpass
+51.52483,0.14568,Fresh Direct,industrial_building,infrastructure,435972085,way,,industrial,OpenStreetMap Overpass
+51.52506,0.14442,"Thames Gateway Park, Chequers Lane",industrial_building,infrastructure,435972089,way,,industrial,OpenStreetMap Overpass
+51.52538,0.1445,"Thames Gateway Park, Chequers Lane",industrial_building,infrastructure,435972090,way,,industrial,OpenStreetMap Overpass
+51.52763,0.08458,Thames Gateway Industrial Building #25,industrial_building,infrastructure,439347050,way,,industrial,OpenStreetMap Overpass
+51.52747,0.08457,Thames Gateway Industrial Building #26,industrial_building,infrastructure,439347052,way,,industrial,OpenStreetMap Overpass
+51.5284,0.08589,Thames Gateway Brownfield #01,brownfield,decay,439347064,way,brownfield,,OpenStreetMap Overpass
+51.52769,0.08548,Thames Gateway Industrial Building #27,industrial_building,infrastructure,439347072,way,,industrial,OpenStreetMap Overpass
+51.52751,0.08418,Thames Gateway Industrial Building #28,industrial_building,infrastructure,439347074,way,,industrial,OpenStreetMap Overpass
+51.52738,0.08418,Thames Gateway Industrial Building #29,industrial_building,infrastructure,439347076,way,,industrial,OpenStreetMap Overpass
+51.52286,0.13385,London Sustainable Industries Park South Plot 10,brownfield,decay,439439881,way,brownfield,,OpenStreetMap Overpass
+51.52448,0.13782,London Sustainable Industries Park,brownfield,decay,439439882,way,brownfield,,OpenStreetMap Overpass
+51.52047,0.13436,Gill Aggregates,industrial,infrastructure,439819960,way,industrial,,OpenStreetMap Overpass
+51.52177,0.13904,Binary Park,industrial,infrastructure,439819961,way,industrial,,OpenStreetMap Overpass
+51.51382,0.07541,former Beckton Gas Works,brownfield,decay,486372219,way,brownfield,,OpenStreetMap Overpass
+51.50784,0.05733,Royal Albert Dock,brownfield,decay,487502304,way,brownfield,,OpenStreetMap Overpass
+51.50903,0.09415,Gallions Reach Abandoned Site #01,abandoned,decay,487668539,way,,bunker,OpenStreetMap Overpass
+51.51545,0.08457,Gemini Business Park,industrial_building,infrastructure,488424182,way,,industrial,OpenStreetMap Overpass
+51.51511,0.08487,Gemini Business Park,industrial_building,infrastructure,488424183,way,,industrial,OpenStreetMap Overpass
+51.51498,0.08631,Gemini Business Park,industrial_building,infrastructure,488424184,way,,industrial,OpenStreetMap Overpass
+51.51528,0.08606,Baird & Co,industrial_building,infrastructure,488424185,way,,industrial,OpenStreetMap Overpass
+51.51559,0.08578,Gemini Business Park,industrial_building,infrastructure,488424186,way,,industrial,OpenStreetMap Overpass
+51.51514,0.08321,Task Systems,industrial_building,infrastructure,488424187,way,,industrial,OpenStreetMap Overpass
+51.51477,0.08352,Lycatel Distribution,industrial_building,infrastructure,488424188,way,,industrial,OpenStreetMap Overpass
+51.51448,0.08377,ME Hire,industrial_building,infrastructure,488424189,way,,industrial,OpenStreetMap Overpass
+51.5134,0.08482,HSS Hire,industrial_building,infrastructure,488424952,way,,industrial,OpenStreetMap Overpass
+51.51415,0.08705,N&C Glass,industrial_building,infrastructure,488424953,way,,industrial,OpenStreetMap Overpass
+51.51355,0.08565,Babcock,industrial_building,infrastructure,488424954,way,,industrial,OpenStreetMap Overpass
+51.51367,0.08601,Gemini Business Park,industrial_building,infrastructure,488424955,way,,industrial,OpenStreetMap Overpass
+51.51379,0.08637,Gemini Business Park,industrial_building,infrastructure,488424956,way,,industrial,OpenStreetMap Overpass
+51.50811,0.07936,Armada Green Park,construction,infrastructure,488430829,way,construction,,OpenStreetMap Overpass
+51.50583,0.07645,Royal Docks Pumping Station,industrial_building,infrastructure,488430832,way,,industrial,OpenStreetMap Overpass
+51.48514,0.17445,Erith Construction Site #01,construction,infrastructure,518744742,way,construction,,OpenStreetMap Overpass
+51.53114,0.16804,Sterling Industrial Estate Abandoned Site #01,abandoned,decay,521061317,way,,bunker,OpenStreetMap Overpass
+51.53562,0.21395,Thames Gateway Abandoned Site #03,abandoned,decay,521062756,way,,bunker,OpenStreetMap Overpass
+51.482,0.17809,Erith Substation,industrial,infrastructure,528706995,way,industrial,,OpenStreetMap Overpass
+51.50358,0.07159,Royal Albert Dock Brownfield #02,brownfield,decay,532830750,way,brownfield,,OpenStreetMap Overpass
+51.50416,0.07233,Royal Albert Dock Brownfield #03,brownfield,decay,532830751,way,brownfield,,OpenStreetMap Overpass
+51.48362,0.16992,R.K. International Machine Tools,industrial_building,infrastructure,543897107,way,,industrial,OpenStreetMap Overpass
+51.5255,0.17125,New Road,industrial_building,infrastructure,545037980,way,,industrial,OpenStreetMap Overpass
+51.49663,0.16364,ISIS Reach Industrial Estate,industrial,infrastructure,550479830,way,industrial,,OpenStreetMap Overpass
+51.5074,0.14138,Crossness Industrial Building #03,industrial_building,infrastructure,551232227,way,,industrial,OpenStreetMap Overpass
+51.50721,0.14187,Crossness Industrial Building #04,industrial_building,infrastructure,551232228,way,,industrial,OpenStreetMap Overpass
+51.50817,0.14046,Crossness Industrial Building #05,industrial_building,infrastructure,551232229,way,,industrial,OpenStreetMap Overpass
+51.5066,0.14275,Crossness Industrial Building #06,industrial_building,infrastructure,551232230,way,,industrial,OpenStreetMap Overpass
+51.50502,0.14278,Crossness Industrial Building #07,industrial_building,infrastructure,551232243,way,,industrial,OpenStreetMap Overpass
+51.50462,0.14383,Crossness Industrial Building #08,industrial_building,infrastructure,551232244,way,,industrial,OpenStreetMap Overpass
+51.50354,0.14298,Crossness Industrial Building #09,industrial_building,infrastructure,551232245,way,,industrial,OpenStreetMap Overpass
+51.50404,0.14167,Crossness Industrial Building #10,industrial_building,infrastructure,551232246,way,,industrial,OpenStreetMap Overpass
+51.50382,0.14225,Crossness Industrial Building #11,industrial_building,infrastructure,551232247,way,,industrial,OpenStreetMap Overpass
+51.50377,0.14237,Crossness Industrial Building #12,industrial_building,infrastructure,551232248,way,,industrial,OpenStreetMap Overpass
+51.5048,0.14335,Crossness Industrial Building #13,industrial_building,infrastructure,551232249,way,,industrial,OpenStreetMap Overpass
+51.50484,0.14325,Crossness Industrial Building #14,industrial_building,infrastructure,551232250,way,,industrial,OpenStreetMap Overpass
+51.50591,0.1423,Crossness Industrial Building #15,industrial_building,infrastructure,551232276,way,,industrial,OpenStreetMap Overpass
+51.506,0.14201,Crossness Industrial Building #16,industrial_building,infrastructure,551232277,way,,industrial,OpenStreetMap Overpass
+51.50674,0.14247,Crossness Industrial Building #17,industrial_building,infrastructure,551232278,way,,industrial,OpenStreetMap Overpass
+51.50678,0.14237,Crossness Industrial Building #18,industrial_building,infrastructure,551232279,way,,industrial,OpenStreetMap Overpass
+51.50682,0.14225,Crossness Industrial Building #19,industrial_building,infrastructure,551232280,way,,industrial,OpenStreetMap Overpass
+51.5065,0.14252,Crossness Industrial Building #20,industrial_building,infrastructure,551232281,way,,industrial,OpenStreetMap Overpass
+51.50605,0.14,Crossness Industrial Building #21,industrial_building,infrastructure,551232282,way,,industrial,OpenStreetMap Overpass
+51.50609,0.13991,Crossness Industrial Building #22,industrial_building,infrastructure,551232283,way,,industrial,OpenStreetMap Overpass
+51.50626,0.13944,Crossness Industrial Building #23,industrial_building,infrastructure,551232284,way,,industrial,OpenStreetMap Overpass
+51.50587,0.14049,Crossness Industrial Building #24,industrial_building,infrastructure,551232285,way,,industrial,OpenStreetMap Overpass
+51.50483,0.13965,Crossness Industrial Building #25,industrial_building,infrastructure,551232286,way,,industrial,OpenStreetMap Overpass
+51.50532,0.13833,Crossness Industrial Building #26,industrial_building,infrastructure,551232287,way,,industrial,OpenStreetMap Overpass
+51.5051,0.13892,Crossness Industrial Building #27,industrial_building,infrastructure,551232288,way,,industrial,OpenStreetMap Overpass
+51.50572,0.1419,Crossness Industrial Building #28,industrial_building,infrastructure,551232290,way,,industrial,OpenStreetMap Overpass
+51.50556,0.13947,Aeration Tanks,industrial_building,infrastructure,551232291,way,,industrial,OpenStreetMap Overpass
+51.5043,0.14281,Aeration Tanks,industrial_building,infrastructure,551232292,way,,industrial,OpenStreetMap Overpass
+51.50571,0.13362,Crossness Industrial Building #29,industrial_building,infrastructure,551330590,way,,industrial,OpenStreetMap Overpass
+51.50757,0.13467,Crossness Industrial Building #30,industrial_building,infrastructure,551330591,way,,industrial,OpenStreetMap Overpass
+51.50516,0.13465,Crossness Industrial Building #31,industrial_building,infrastructure,551863899,way,,industrial,OpenStreetMap Overpass
+51.50516,0.1337,Crossness Industrial Building #32,industrial_building,infrastructure,551863901,way,,industrial,OpenStreetMap Overpass
+51.50532,0.13424,Crossness Industrial Building #33,industrial_building,infrastructure,551863903,way,,industrial,OpenStreetMap Overpass
+51.50334,0.14188,Primary Settlement Tanks,industrial_building,infrastructure,551863945,way,,industrial,OpenStreetMap Overpass
+51.5046,0.13854,Primary Settlement Tanks,industrial_building,infrastructure,551863947,way,,industrial,OpenStreetMap Overpass
+51.50247,0.14115,Crossness Construction Site #01,construction,infrastructure,551863953,way,construction,,OpenStreetMap Overpass
+51.50744,0.13624,Crossness Industrial Building #34,industrial_building,infrastructure,551863955,way,,industrial,OpenStreetMap Overpass
+51.50693,0.1375,Crossness Industrial Building #35,industrial_building,infrastructure,551863957,way,,industrial,OpenStreetMap Overpass
+51.50604,0.13824,Crossness Industrial Building #36,industrial_building,infrastructure,551863980,way,,industrial,OpenStreetMap Overpass
+51.504,0.13877,Crossness Industrial Building #37,industrial_building,infrastructure,551936177,way,,industrial,OpenStreetMap Overpass
+51.5041,0.13804,Crossness Industrial Building #38,industrial_building,infrastructure,551936178,way,,industrial,OpenStreetMap Overpass
+51.50475,0.1413,Crossness Industrial Building #39,industrial_building,infrastructure,551936186,way,,industrial,OpenStreetMap Overpass
+51.50464,0.14088,Crossness Industrial Building #40,industrial_building,infrastructure,551936192,way,,industrial,OpenStreetMap Overpass
+51.50447,0.14099,Crossness Industrial Building #41,industrial_building,infrastructure,551936193,way,,industrial,OpenStreetMap Overpass
+51.5032,0.14092,Crossness Industrial Building #42,industrial_building,infrastructure,551936195,way,,industrial,OpenStreetMap Overpass
+51.50285,0.1414,Crossness Industrial Building #43,industrial_building,infrastructure,551936196,way,,industrial,OpenStreetMap Overpass
+51.50791,0.14032,Crossness Industrial Building #44,industrial_building,infrastructure,551936201,way,,industrial,OpenStreetMap Overpass
+51.50777,0.13992,Crossness Industrial Building #45,industrial_building,infrastructure,551936202,way,,industrial,OpenStreetMap Overpass
+51.50828,0.1397,Crossness Industrial Building #46,industrial_building,infrastructure,551936205,way,,industrial,OpenStreetMap Overpass
+51.5087,0.14049,Crossness Industrial Building #47,industrial_building,infrastructure,551936208,way,,industrial,OpenStreetMap Overpass
+51.50895,0.13885,Crossness Industrial Building #48,industrial_building,infrastructure,551936210,way,,industrial,OpenStreetMap Overpass
+51.50618,0.14434,Crossness Industrial Building #49,industrial_building,infrastructure,551936213,way,,industrial,OpenStreetMap Overpass
+51.50614,0.14442,Crossness Industrial Building #50,industrial_building,infrastructure,551936214,way,,industrial,OpenStreetMap Overpass
+51.50794,0.1379,Underground Storm Water Holding Tanks,industrial_building,infrastructure,551987741,way,,industrial,OpenStreetMap Overpass
+51.50749,0.13684,Crossness Industrial Building #51,industrial_building,infrastructure,551987743,way,,industrial,OpenStreetMap Overpass
+51.50692,0.13831,Crossness Industrial Building #52,industrial_building,infrastructure,551987744,way,,industrial,OpenStreetMap Overpass
+51.50915,0.13691,Crossness Industrial Building #53,industrial_building,infrastructure,551987745,way,,industrial,OpenStreetMap Overpass
+51.50883,0.13854,Crossness Industrial Building #54,industrial_building,infrastructure,551987746,way,,industrial,OpenStreetMap Overpass
+51.50866,0.13882,Crossness Industrial Building #55,industrial_building,infrastructure,551987747,way,,industrial,OpenStreetMap Overpass
+51.50876,0.13891,Crossness Industrial Building #56,industrial_building,infrastructure,551987748,way,,industrial,OpenStreetMap Overpass
+51.50385,0.14404,Crossness Industrial Building #57,industrial_building,infrastructure,551987765,way,,industrial,OpenStreetMap Overpass
+51.50189,0.1457,Belvedere Industrial Building #15,industrial_building,infrastructure,552175558,way,,industrial,OpenStreetMap Overpass
+51.50146,0.14354,Primary Settlement Tanks,industrial_building,infrastructure,552175560,way,,industrial,OpenStreetMap Overpass
+51.50092,0.14335,Crossness Industrial Building #58,industrial_building,infrastructure,552175561,way,,industrial,OpenStreetMap Overpass
+51.50086,0.14378,Crossness Industrial Building #59,industrial_building,infrastructure,552175562,way,,industrial,OpenStreetMap Overpass
+51.50629,0.1425,Consolidation Tanks,industrial,infrastructure,553583161,way,industrial,,OpenStreetMap Overpass
+51.50718,0.14329,Sludge Blending Tanks,industrial,infrastructure,553583162,way,industrial,,OpenStreetMap Overpass
+51.54669,0.18564,Hornchurch Industrial Site #01,industrial,infrastructure,556517663,way,industrial,,OpenStreetMap Overpass
+51.5503,0.19815,Broadway Parade,warehouse,infrastructure,558340963,way,,warehouse,OpenStreetMap Overpass
+51.55005,0.19852,Hornchurch Warehouse #01,warehouse,infrastructure,558340966,way,,warehouse,OpenStreetMap Overpass
+51.49403,0.23198,Purfleet Bus Garage,industrial,infrastructure,559192451,way,industrial,,OpenStreetMap Overpass
+51.55049,0.20196,Hornchurch Industrial Building #01,industrial_building,infrastructure,559245499,way,,industrial,OpenStreetMap Overpass
+51.55048,0.20199,Hornchurch Industrial Site #02,industrial,infrastructure,559245500,way,industrial,,OpenStreetMap Overpass
+51.51381,0.07337,Beckton CHiP Facility,industrial,infrastructure,571570523,way,industrial,,OpenStreetMap Overpass
+51.517,0.11251,River Road,brownfield,decay,583199235,way,brownfield,,OpenStreetMap Overpass
+51.50779,0.11151,Gallions Reach Industrial Building #01,industrial_building,infrastructure,601089887,way,,industrial,OpenStreetMap Overpass
+51.52205,0.12556,Barking Riverside,construction,infrastructure,601316662,way,construction,,OpenStreetMap Overpass
+51.56993,0.18407,Romford Seedbed C,industrial_building,infrastructure,618115888,way,,industrial,OpenStreetMap Overpass
+51.57005,0.18467,Romford Seedbed D,industrial_building,infrastructure,618115889,way,,industrial,OpenStreetMap Overpass
+51.56963,0.18484,Romford Seedbed E,industrial_building,infrastructure,618115892,way,,industrial,OpenStreetMap Overpass
+51.56994,0.18305,Thames Gateway Industrial Building #30,industrial_building,infrastructure,618115893,way,,industrial,OpenStreetMap Overpass
+51.51827,0.0896,Beckton Sludge Powered Generator,industrial_building,infrastructure,646316465,way,,industrial,OpenStreetMap Overpass
+51.5077,0.07624,Royal Albert Dock Industrial Site #01,industrial,infrastructure,646499609,way,industrial,,OpenStreetMap Overpass
+51.50976,0.07337,Royal Albert Dock Industrial Site #02,industrial,infrastructure,646499611,way,industrial,,OpenStreetMap Overpass
+51.50918,0.07747,Armada Way,brownfield,decay,646499622,way,brownfield,,OpenStreetMap Overpass
+51.51083,0.07631,Beckton DLR Depot Expansion,construction,infrastructure,646499626,way,construction,,OpenStreetMap Overpass
+51.51511,0.08133,Beckton Sewage Works Brownfield #01,brownfield,decay,646499630,way,brownfield,,OpenStreetMap Overpass
+51.51676,0.10264,River Road Warehouse #01,warehouse,infrastructure,663942648,way,,warehouse,OpenStreetMap Overpass
+51.53646,0.17696,Sterling Industrial Estate Industrial Site #02,industrial,infrastructure,666659823,way,industrial,,OpenStreetMap Overpass
+51.53621,0.17786,Sterling Industrial Estate Industrial Site #03,industrial,infrastructure,666659824,way,industrial,,OpenStreetMap Overpass
+51.53653,0.17815,Sterling Industrial Estate Industrial Site #04,industrial,infrastructure,666659835,way,industrial,,OpenStreetMap Overpass
+51.53656,0.17641,Sterling Industrial Estate Industrial Site #05,industrial,infrastructure,666659837,way,industrial,,OpenStreetMap Overpass
+51.5369,0.17618,Sterling Industrial Estate Industrial Site #06,industrial,infrastructure,666659841,way,industrial,,OpenStreetMap Overpass
+51.52312,0.1447,Hovis Dagenham RDC,industrial_warehouse,infrastructure,676215041,way,,,OpenStreetMap Overpass
+51.52378,0.14486,Boots Dagenham CDC,industrial_warehouse,infrastructure,676215043,way,,,OpenStreetMap Overpass
+51.52519,0.14187,Worldwide Logistics Group,industrial_building,infrastructure,676215053,way,,industrial,OpenStreetMap Overpass
+51.52578,0.14207,"Thames Gateway Park, Chequers Lane",industrial_building,infrastructure,676215055,way,,industrial,OpenStreetMap Overpass
+51.52397,0.13627,Dagenham Docks Biogas,industrial,infrastructure,676222604,way,industrial,,OpenStreetMap Overpass
+51.524,0.13689,Choats Road Industrial Building #01,industrial_building,infrastructure,676222649,way,,industrial,OpenStreetMap Overpass
+51.52813,0.1444,Chequers Lane Industrial Site #02,industrial,infrastructure,676486632,way,industrial,,OpenStreetMap Overpass
+51.52661,0.14542,GSR Self Storage,industrial,infrastructure,676486633,way,industrial,,OpenStreetMap Overpass
+51.52609,0.14967,Chequers Lane Industrial Building #08,industrial_building,infrastructure,676486635,way,,industrial,OpenStreetMap Overpass
+51.5286,0.14292,Kuehne+Nagel,industrial_building,infrastructure,676486645,way,,industrial,OpenStreetMap Overpass
+51.52865,0.14543,JJ Foodservice,industrial_building,infrastructure,676486647,way,,industrial,OpenStreetMap Overpass
+51.52423,0.14341,Thames Gateway Park,industrial,infrastructure,676486649,way,industrial,,OpenStreetMap Overpass
+51.53061,0.15008,Former Transport House,construction,infrastructure,676769829,way,construction,,OpenStreetMap Overpass
+51.51735,0.14196,Stolthaven Dagenham,industrial_port,infrastructure,681705125,way,industrial,,OpenStreetMap Overpass
+51.49139,0.19473,Rainham Landfill Scheme,industrial,infrastructure,687451476,way,industrial,,OpenStreetMap Overpass
+51.5208,0.14754,former Barking Reach Power Station,brownfield,decay,697503310,way,brownfield,,OpenStreetMap Overpass
+51.49686,0.16882,Erith Industrial Building #13,industrial_building,infrastructure,700879815,way,,industrial,OpenStreetMap Overpass
+51.49736,0.1674,Erith Industrial Building #14,industrial_building,infrastructure,700879816,way,,industrial,OpenStreetMap Overpass
+51.49774,0.16734,Erith Industrial Building #15,industrial_building,infrastructure,700879817,way,,industrial,OpenStreetMap Overpass
+51.49167,0.16016,Belvedere Industrial Building #16,industrial_building,infrastructure,700879818,way,,industrial,OpenStreetMap Overpass
+51.49179,0.16036,Belvedere Industrial Building #17,industrial_building,infrastructure,700879819,way,,industrial,OpenStreetMap Overpass
+51.49313,0.16088,Belvedere Industrial Building #18,industrial_building,infrastructure,700879824,way,,industrial,OpenStreetMap Overpass
+51.49413,0.16164,Belvedere Industrial Building #19,industrial_building,infrastructure,700879825,way,,industrial,OpenStreetMap Overpass
+51.50008,0.1535,Belvedere Industrial Building #20,industrial_building,infrastructure,700879826,way,,industrial,OpenStreetMap Overpass
+51.50144,0.16184,Belvedere Industrial Building #21,industrial_building,infrastructure,700879827,way,,industrial,OpenStreetMap Overpass
+51.49914,0.16122,Belvedere Industrial Building #22,industrial_building,infrastructure,700879828,way,,industrial,OpenStreetMap Overpass
+51.49952,0.16142,Belvedere Industrial Building #23,industrial_building,infrastructure,700879829,way,,industrial,OpenStreetMap Overpass
+51.50045,0.16217,Belvedere Industrial Building #24,industrial_building,infrastructure,700879830,way,,industrial,OpenStreetMap Overpass
+51.50059,0.16115,Belvedere Industrial Building #25,industrial_building,infrastructure,700879831,way,,industrial,OpenStreetMap Overpass
+51.49152,0.16131,Belvedere Industrial Building #26,industrial_building,infrastructure,700879859,way,,industrial,OpenStreetMap Overpass
+51.49725,0.1631,Belvedere Industrial Building #27,industrial_building,infrastructure,700879860,way,,industrial,OpenStreetMap Overpass
+51.49721,0.16235,Concorde Metals,industrial_building,infrastructure,700879861,way,,industrial,OpenStreetMap Overpass
+51.49757,0.16251,Belvedere Industrial Building #28,industrial_building,infrastructure,700879862,way,,industrial,OpenStreetMap Overpass
+51.49794,0.16286,Concorde Metals,industrial_building,infrastructure,700879863,way,,industrial,OpenStreetMap Overpass
+51.4999,0.16483,Belvedere Industrial Building #29,industrial_building,infrastructure,700879865,way,,industrial,OpenStreetMap Overpass
+51.49949,0.1646,Belvedere Industrial Building #30,industrial_building,infrastructure,700879866,way,,industrial,OpenStreetMap Overpass
+51.4997,0.16545,Erith Industrial Building #16,industrial_building,infrastructure,700879867,way,,industrial,OpenStreetMap Overpass
+51.49901,0.16481,Belvedere Industrial Building #31,industrial_building,infrastructure,700879869,way,,industrial,OpenStreetMap Overpass
+51.4979,0.16527,Erith Industrial Building #17,industrial_building,infrastructure,700879870,way,,industrial,OpenStreetMap Overpass
+51.49744,0.16533,Erith Industrial Building #18,industrial_building,infrastructure,700879871,way,,industrial,OpenStreetMap Overpass
+51.53507,0.08229,Gascoigne East Phase 2,construction,infrastructure,703957909,way,construction,,OpenStreetMap Overpass
+51.51752,0.14617,Ford Dagenham Works Industrial Building #01,industrial_building,infrastructure,710051860,way,,industrial,OpenStreetMap Overpass
+51.51743,0.14703,Ford Dagenham Works Industrial Building #02,industrial_building,infrastructure,710051861,way,,industrial,OpenStreetMap Overpass
+51.51725,0.14671,Ford Dagenham Works Industrial Building #03,industrial_building,infrastructure,710051862,way,,industrial,OpenStreetMap Overpass
+51.51719,0.14657,Ford Dagenham Works Industrial Building #04,industrial_building,infrastructure,710051863,way,,industrial,OpenStreetMap Overpass
+51.51707,0.14612,Ford Dagenham Works Industrial Building #05,industrial_building,infrastructure,710051864,way,,industrial,OpenStreetMap Overpass
+51.51714,0.14539,Ford Dagenham Works Industrial Building #06,industrial_building,infrastructure,710051865,way,,industrial,OpenStreetMap Overpass
+51.51559,0.14931,Ford Dagenham Works Industrial Building #07,industrial_building,infrastructure,710051867,way,,industrial,OpenStreetMap Overpass
+51.52411,0.15615,Rainham Road South Industrial Building #01,industrial_building,infrastructure,710051875,way,,industrial,OpenStreetMap Overpass
+51.52837,0.13932,Eddie Stobart,industrial_building,infrastructure,710051888,way,,industrial,OpenStreetMap Overpass
+51.52919,0.13702,Eddie Stobart,industrial_building,infrastructure,710051889,way,,industrial,OpenStreetMap Overpass
+51.51893,0.17574,Consul Avenue,warehouse,infrastructure,711269927,way,,warehouse,OpenStreetMap Overpass
+51.51934,0.17497,Babcock Rainham,warehouse,infrastructure,711269928,way,,warehouse,OpenStreetMap Overpass
+51.52011,0.1759,MEP Plant Hire,warehouse,infrastructure,711269930,way,,warehouse,OpenStreetMap Overpass
+51.51627,0.06936,Henry Addlington Close,industrial_building,infrastructure,722072446,way,,industrial,OpenStreetMap Overpass
+51.51705,0.07205,Roding Road,industrial_building,infrastructure,722072447,way,,industrial,OpenStreetMap Overpass
+51.50922,0.13635,RANG Railway,industrial_depot,infrastructure,722893190,way,industrial,yes,OpenStreetMap Overpass
+51.51948,0.10015,River Road Industrial Building #01,industrial_building,infrastructure,740699846,way,,industrial,OpenStreetMap Overpass
+51.5194,0.09902,River Road Industrial Building #02,industrial_building,infrastructure,740699847,way,,industrial,OpenStreetMap Overpass
+51.51936,0.0984,River Road Industrial Building #03,industrial_building,infrastructure,740699848,way,,industrial,OpenStreetMap Overpass
+51.51993,0.10052,River Road Industrial Building #04,industrial_building,infrastructure,740699849,way,,industrial,OpenStreetMap Overpass
+51.51972,0.09827,River Road Industrial Building #05,industrial_building,infrastructure,740699850,way,,industrial,OpenStreetMap Overpass
+51.52012,0.09872,River Road North Industrial Building #05,industrial_building,infrastructure,740699851,way,,industrial,OpenStreetMap Overpass
+51.52039,0.09943,River Road North Industrial Building #06,industrial_building,infrastructure,740699852,way,,industrial,OpenStreetMap Overpass
+51.52061,0.0991,River Road North Industrial Building #07,industrial_building,infrastructure,740699853,way,,industrial,OpenStreetMap Overpass
+51.52046,0.09801,River Road North Industrial Building #08,industrial_building,infrastructure,740699854,way,,industrial,OpenStreetMap Overpass
+51.52118,0.09744,River Road North Industrial Building #09,industrial_building,infrastructure,740699855,way,,industrial,OpenStreetMap Overpass
+51.52055,0.10002,River Road North Industrial Building #10,industrial_building,infrastructure,740699856,way,,industrial,OpenStreetMap Overpass
+51.52117,0.09922,River Road North Industrial Building #11,industrial_building,infrastructure,740699857,way,,industrial,OpenStreetMap Overpass
+51.52145,0.09866,Gandhi Wine Supplies Ltd,industrial_building,infrastructure,740699858,way,,industrial,OpenStreetMap Overpass
+51.52154,0.099,L. E. West Ltd,industrial_building,infrastructure,740699859,way,,industrial,OpenStreetMap Overpass
+51.52134,0.09982,River Road North Industrial Building #12,industrial_building,infrastructure,740699860,way,,industrial,OpenStreetMap Overpass
+51.52134,0.10149,River Road North Industrial Building #13,industrial_building,infrastructure,740699861,way,,industrial,OpenStreetMap Overpass
+51.5214,0.10043,River Road North Industrial Building #14,industrial_building,infrastructure,740699862,way,,industrial,OpenStreetMap Overpass
+51.52192,0.10011,River Road North Industrial Building #15,industrial_building,infrastructure,740699863,way,,industrial,OpenStreetMap Overpass
+51.5254,0.0956,River Road North Industrial Building #16,industrial_building,infrastructure,740980161,way,,industrial,OpenStreetMap Overpass
+51.52503,0.09791,Thames Road,industrial_building,infrastructure,740980162,way,,industrial,OpenStreetMap Overpass
+51.52369,0.10013,River Road North Industrial Site #03,industrial,infrastructure,740980163,way,industrial,,OpenStreetMap Overpass
+51.52562,0.10036,TR Crash Repairs Ltd,industrial_building,infrastructure,740980165,way,,industrial,OpenStreetMap Overpass
+51.52436,0.10563,River Road North Industrial Site #04,industrial,infrastructure,740980169,way,industrial,,OpenStreetMap Overpass
+51.52569,0.10152,The Capital Dairy Company Ltd,industrial_distributor,infrastructure,740980170,way,industrial,,OpenStreetMap Overpass
+51.52565,0.1027,River Road North Industrial Site #05,industrial,infrastructure,740980171,way,industrial,,OpenStreetMap Overpass
+51.52489,0.1021,River Road North Industrial Building #17,industrial_building,infrastructure,740980172,way,,industrial,OpenStreetMap Overpass
+51.52189,0.13528,Choats Road Industrial Site #01,industrial,infrastructure,741850770,way,industrial,,OpenStreetMap Overpass
+51.52017,0.13991,Choats Road Industrial Site #02,industrial,infrastructure,741850778,way,industrial,,OpenStreetMap Overpass
+51.52104,0.13724,East Dagenham Docks AD (AD),industrial,infrastructure,741850779,way,industrial,,OpenStreetMap Overpass
+51.49349,0.0674,Woolwich Construction Site #02,construction,infrastructure,748824063,way,construction,,OpenStreetMap Overpass
+51.49233,0.06833,Woolwich Construction Site #03,construction,infrastructure,749299551,way,construction,,OpenStreetMap Overpass
+51.52064,0.17762,Thames Gateway Industrial Site #15,industrial,infrastructure,751992478,way,industrial,,OpenStreetMap Overpass
+51.51912,0.17563,Segro Industrial Park,industrial_warehouse,infrastructure,751994852,way,industrial,,OpenStreetMap Overpass
+51.52495,0.11362,Barking Riverside Industrial Building #01,industrial_building,infrastructure,789312785,way,,industrial,OpenStreetMap Overpass
+51.49201,0.09475,Thames Gateway Industrial Site #16,industrial,infrastructure,796924794,way,industrial,,OpenStreetMap Overpass
+51.49367,0.10131,Thames Gateway Industrial Site #17,industrial,infrastructure,796924795,way,industrial,,OpenStreetMap Overpass
+51.49319,0.09878,Thames Gateway Industrial Site #18,industrial,infrastructure,796924796,way,industrial,,OpenStreetMap Overpass
+51.49925,0.06176,Pier Road,brownfield,decay,796924803,way,brownfield,,OpenStreetMap Overpass
+51.50765,0.07897,Royal Albert Dock Construction Site #01,construction,infrastructure,797530793,way,construction,,OpenStreetMap Overpass
+51.5033,0.07467,Albert Island,brownfield,decay,797530795,way,brownfield,,OpenStreetMap Overpass
+51.50921,0.10852,Gallions Reach Industrial Site #01,industrial,infrastructure,797595261,way,industrial,,OpenStreetMap Overpass
+51.49533,0.19597,Rainham Landfill,landfill,decay,797601576,way,landfill,,OpenStreetMap Overpass
+51.50024,0.15378,Belvedere Industrial Site #02,industrial,infrastructure,798131499,way,industrial,,OpenStreetMap Overpass
+51.49694,0.22844,Purfleet Industrial Park,industrial,infrastructure,798137992,way,industrial,,OpenStreetMap Overpass
+51.51463,0.17751,Dagenham Dock East Industrial Site #01,industrial,infrastructure,798141209,way,industrial,,OpenStreetMap Overpass
+51.52016,0.17362,Rainham Road South Industrial Site #01,industrial,infrastructure,798141213,way,industrial,,OpenStreetMap Overpass
+51.52216,0.16818,Rainham Road South Industrial Site #02,industrial,infrastructure,798141214,way,industrial,,OpenStreetMap Overpass
+51.52741,0.0751,SEGRO Park Beckton,industrial,infrastructure,801344621,way,industrial,,OpenStreetMap Overpass
+51.50797,0.112,Gallions Reach Industrial Building #02,industrial_building,infrastructure,801822892,way,,industrial,OpenStreetMap Overpass
+51.50796,0.112,Gallions Reach Industrial Site #02,industrial,infrastructure,801822893,way,industrial,,OpenStreetMap Overpass
+51.50775,0.11185,Gallions Reach Industrial Building #03,industrial_building,infrastructure,801822894,way,,industrial,OpenStreetMap Overpass
+51.50767,0.11181,Gallions Reach Industrial Building #04,industrial_building,infrastructure,801822896,way,,industrial,OpenStreetMap Overpass
+51.50767,0.11175,Gallions Reach Industrial Building #05,industrial_building,infrastructure,801822897,way,,industrial,OpenStreetMap Overpass
+51.50777,0.11158,Thamesmere Substation,industrial,infrastructure,801822899,way,industrial,,OpenStreetMap Overpass
+51.53916,0.068,Thames Gateway Warehouse #02,warehouse,infrastructure,806443839,way,,warehouse,OpenStreetMap Overpass
+51.53912,0.06782,Thames Gateway Industrial Building #31,industrial_building,infrastructure,806443841,way,,industrial,OpenStreetMap Overpass
+51.53865,0.06821,Thames Gateway Industrial Building #32,industrial_building,infrastructure,806456352,way,,industrial,OpenStreetMap Overpass
+51.48811,0.06402,"London Square, Woolwich",construction,infrastructure,806959567,way,construction,,OpenStreetMap Overpass
+51.54084,0.07465,The Jolly Fisherman,construction,infrastructure,807148324,way,construction,,OpenStreetMap Overpass
+51.49428,0.06506,Woolwich Construction Site #04,construction,infrastructure,816513938,way,construction,,OpenStreetMap Overpass
+51.51528,0.08782,Beckton Activated Sludge Plant,sewage,decay,820401226,way,,,OpenStreetMap Overpass
+51.51421,0.08401,London Victoria Docks Delivery Office,industrial_building,infrastructure,829829868,way,,industrial,OpenStreetMap Overpass
+51.52398,0.17274,90 New Road (Clarion),construction,infrastructure,831330832,way,construction,,OpenStreetMap Overpass
+51.48848,0.08791,Thames Gateway Industrial Building #33,industrial_building,infrastructure,839523381,way,,industrial,OpenStreetMap Overpass
+51.48883,0.08741,Thames Gateway Industrial Building #34,industrial_building,infrastructure,839523382,way,,industrial,OpenStreetMap Overpass
+51.4889,0.08755,Thames Gateway Industrial Building #35,industrial_building,infrastructure,839523383,way,,industrial,OpenStreetMap Overpass
+51.48892,0.08745,Thames Gateway Industrial Building #36,industrial_building,infrastructure,839523384,way,,industrial,OpenStreetMap Overpass
+51.48895,0.08737,Thames Gateway Industrial Building #37,industrial_building,infrastructure,839523385,way,,industrial,OpenStreetMap Overpass
+51.48865,0.08774,Thames Gateway Industrial Building #38,industrial_building,infrastructure,839523386,way,,industrial,OpenStreetMap Overpass
+51.48862,0.08741,Thames Gateway Industrial Building #39,industrial_building,infrastructure,839523387,way,,industrial,OpenStreetMap Overpass
+51.51566,0.10253,MixIt,industrial_building,infrastructure,843231047,way,,industrial,OpenStreetMap Overpass
+51.51851,0.10862,River Road Brownfield #01,brownfield,decay,844557163,way,brownfield,,OpenStreetMap Overpass
+51.51208,0.20099,Rainham Abandoned Site #01,abandoned,decay,849912788,way,,,OpenStreetMap Overpass
+51.50797,0.06093,Royal Albert Dock Brownfield #04,brownfield,decay,854490895,way,brownfield,,OpenStreetMap Overpass
+51.50439,0.18184,Easter Industrial Park,industrial,infrastructure,857329106,way,industrial,,OpenStreetMap Overpass
+51.50205,0.18277,Tilda Limited,industrial,infrastructure,857329108,way,industrial,,OpenStreetMap Overpass
+51.51012,0.17957,Dagenham Dock East Industrial Site #02,industrial,infrastructure,857755645,way,industrial,,OpenStreetMap Overpass
+51.51101,0.17279,Fairview Industrial Park,industrial,infrastructure,857755646,way,industrial,,OpenStreetMap Overpass
+51.51925,0.21051,Imperial Trading Estate,industrial,infrastructure,857953362,way,industrial,,OpenStreetMap Overpass
+51.51957,0.2112,Deans Trading Estate,industrial,infrastructure,857953363,way,industrial,,OpenStreetMap Overpass
+51.52482,0.16392,Rainham Road South Industrial Gas #01,industrial_gas,infrastructure,858147154,way,industrial,,OpenStreetMap Overpass
+51.56556,0.13559,Thames Gateway Industrial Site #19,industrial,infrastructure,858900225,way,industrial,,OpenStreetMap Overpass
+51.51518,0.1854,Albright Industrial Estate,industrial,infrastructure,860486936,way,industrial,,OpenStreetMap Overpass
+51.51622,0.18725,Ferry Lane Industrial Estate,industrial,infrastructure,860486937,way,industrial,,OpenStreetMap Overpass
+51.51415,0.18304,Denver Industrial Estate,industrial,infrastructure,860486938,way,industrial,,OpenStreetMap Overpass
+51.56011,0.14784,Frizlands Waste Facility #05,waste_facility,decay,860654031,way,,,OpenStreetMap Overpass
+51.57067,0.17244,Thames Gateway Industrial Site #20,industrial,infrastructure,860751402,way,industrial,,OpenStreetMap Overpass
+51.57002,0.18426,Romford Seedbed Centre,industrial,infrastructure,860751410,way,industrial,,OpenStreetMap Overpass
+51.56978,0.18172,Thames Gateway Construction Site #02,construction,infrastructure,860751411,way,construction,,OpenStreetMap Overpass
+51.53448,0.07213,Thames Gateway Construction Site #03,construction,infrastructure,862660573,way,construction,,OpenStreetMap Overpass
+51.52226,0.18025,Rainham Industrial Site #01,industrial,infrastructure,865499826,way,industrial,,OpenStreetMap Overpass
+51.52247,0.17823,Rainham Steel Co. Ltd,industrial,infrastructure,865499827,way,industrial,,OpenStreetMap Overpass
+51.52306,0.1786,Thames Gateway Industrial Site #21,industrial,infrastructure,865499828,way,industrial,,OpenStreetMap Overpass
+51.52341,0.1756,Suttons Business Park,industrial,infrastructure,865499829,way,industrial,,OpenStreetMap Overpass
+51.5236,0.17462,Rainham Road South Industrial Site #03,industrial,infrastructure,865499830,way,industrial,,OpenStreetMap Overpass
+51.52555,0.17175,Rontex Ltd,waste_facility,decay,865525476,way,,yes,OpenStreetMap Overpass
+51.52574,0.17012,Kream Developments,industrial_building,infrastructure,868501914,way,,industrial,OpenStreetMap Overpass
+51.52572,0.17022,Home Tiles,industrial_building,infrastructure,868501915,way,,industrial,OpenStreetMap Overpass
+51.5257,0.17033,ABC Safe Clean Company,industrial_building,infrastructure,868501916,way,,industrial,OpenStreetMap Overpass
+51.52568,0.17043,Dancework Studio,industrial_building,infrastructure,868501917,way,,industrial,OpenStreetMap Overpass
+51.52566,0.17053,Tyre Warehouse,industrial_building,infrastructure,868501918,way,,industrial,OpenStreetMap Overpass
+51.52563,0.17064,Nationwide Windscreen Services,industrial_building,infrastructure,868501919,way,,industrial,OpenStreetMap Overpass
+51.52561,0.17074,Steel Plus 1 Ltd,industrial_building,infrastructure,868501920,way,,industrial,OpenStreetMap Overpass
+51.52559,0.17084,London Automatics,industrial_building,infrastructure,868501921,way,,industrial,OpenStreetMap Overpass
+51.52557,0.17094,Rainham Auto Centre,industrial_building,infrastructure,868501922,way,,industrial,OpenStreetMap Overpass
+51.52555,0.17105,Paul's Taxi Specialists Ltd,industrial_building,infrastructure,868501923,way,,industrial,OpenStreetMap Overpass
+51.52552,0.17115,Darncrest Scrap Metals,waste_facility,decay,868501924,way,,industrial,OpenStreetMap Overpass
+51.53993,0.16552,Sterling Industrial Estate Waste Facility #01,waste_facility,decay,870880203,way,,,OpenStreetMap Overpass
+51.50805,0.07946,Royal Albert Dock Industrial Building #07,industrial_building,infrastructure,891712796,way,,industrial,OpenStreetMap Overpass
+51.51367,0.07912,former Beckton Gas Works,brownfield,decay,894692859,way,brownfield,,OpenStreetMap Overpass
+51.51047,0.07366,CVU Highways Depot,industrial_depot,infrastructure,894692865,way,industrial,,OpenStreetMap Overpass
+51.52173,0.10882,Mallards Road SPS,industrial,infrastructure,899223402,way,industrial,,OpenStreetMap Overpass
+51.52063,0.07488,Canning Town Construction Site #01,construction,infrastructure,899583744,way,construction,,OpenStreetMap Overpass
+51.53453,0.08822,Barking Industrial Building #01,industrial_building,infrastructure,899817376,way,,industrial,OpenStreetMap Overpass
+51.51032,0.07246,Beckton Industrial Depot #01,industrial_depot,infrastructure,904215387,way,industrial,,OpenStreetMap Overpass
+51.56676,0.14046,Thames Gateway Brownfield #02,brownfield,decay,904215390,way,brownfield,,OpenStreetMap Overpass
+51.56686,0.14309,Thames Gateway Industrial Site #22,industrial,infrastructure,904215391,way,industrial,,OpenStreetMap Overpass
+51.52706,0.21052,Thames Gateway Construction Site #04,construction,infrastructure,911058612,way,construction,,OpenStreetMap Overpass
+51.52828,0.17022,Rainham Road South Waste Facility #01,waste_facility,decay,918703703,way,,,OpenStreetMap Overpass
+51.55792,0.15707,Frizlands Lane Recycling Centre,waste_facility,decay,921812619,way,,,OpenStreetMap Overpass
+51.50184,0.07379,Royal Albert Dock Industrial Building #08,industrial_building,infrastructure,946766598,way,,industrial,OpenStreetMap Overpass
+51.55304,0.13558,Cherry Tree Substation,industrial,infrastructure,969563132,way,industrial,,OpenStreetMap Overpass
+51.49092,0.17174,Erith Warehouse #01,warehouse,infrastructure,971622821,way,,warehouse,OpenStreetMap Overpass
+51.49269,0.16062,Belvedere Industrial Building #32,industrial_building,infrastructure,971622825,way,,industrial,OpenStreetMap Overpass
+51.52472,0.17137,Former RTS Motors,construction,infrastructure,977352620,way,construction,,OpenStreetMap Overpass
+51.48128,0.14368,Erith Waste Facility #03,waste_facility,decay,978209185,way,,,OpenStreetMap Overpass
+51.49432,0.06189,Woolwich Industrial Site #03,industrial,infrastructure,986283852,way,industrial,,OpenStreetMap Overpass
+51.52463,0.16827,Park Primary Academy,construction,infrastructure,988336312,way,construction,,OpenStreetMap Overpass
+51.53662,0.07258,Abbey Quay,construction,infrastructure,996875849,way,construction,,OpenStreetMap Overpass
+51.50827,0.14141,Dewatering Building,industrial_building,infrastructure,1000212649,way,,industrial,OpenStreetMap Overpass
+51.50229,0.16534,Thames Gateway Industrial Building #40,industrial_building,infrastructure,1000223432,way,,industrial,OpenStreetMap Overpass
+51.51906,0.13739,Creekmouth Industrial Site #01,industrial,infrastructure,1000225141,way,industrial,,OpenStreetMap Overpass
+51.51981,0.14345,Dagenham Dock Industrial Site #02,industrial,infrastructure,1000225142,way,industrial,,OpenStreetMap Overpass
+51.51935,0.1379,Creekmouth Brownfield #01,brownfield,decay,1000225143,way,brownfield,,OpenStreetMap Overpass
+51.52425,0.13421,Choats Road Industrial Site #03,industrial,infrastructure,1000502192,way,industrial,,OpenStreetMap Overpass
+51.52063,0.17825,Thames Gateway Industrial Building #41,industrial_building,infrastructure,1000510631,way,,industrial,OpenStreetMap Overpass
+51.52111,0.17701,Thames Gateway Industrial Building #42,industrial_building,infrastructure,1000510632,way,,industrial,OpenStreetMap Overpass
+51.51638,0.10707,River Road Industrial Site #02,industrial,infrastructure,1000513083,way,industrial,,OpenStreetMap Overpass
+51.50801,0.07042,Thames Water Gallions Surface Water Pumping Station,industrial,infrastructure,1000515562,way,industrial,,OpenStreetMap Overpass
+51.47997,0.18606,Erith Waste Facility #04,waste_facility,decay,1012652025,way,,,OpenStreetMap Overpass
+51.52259,0.12002,Barking Riverside Brownfield #01,brownfield,decay,1019098158,way,brownfield,,OpenStreetMap Overpass
+51.51942,0.14708,Dagenham Dock Industrial Building #05,industrial_building,infrastructure,1021376265,way,,industrial,OpenStreetMap Overpass
+51.51935,0.14908,Dagenham Dock Industrial Building #06,industrial_building,infrastructure,1021376266,way,,industrial,OpenStreetMap Overpass
+51.51857,0.14994,Dagenham Dock Industrial Building #07,industrial_building,infrastructure,1021376267,way,,industrial,OpenStreetMap Overpass
+51.51733,0.14958,Ford Dagenham Works Industrial Building #08,industrial_building,infrastructure,1021376269,way,,industrial,OpenStreetMap Overpass
+51.51514,0.1468,Ford Dagenham Works Industrial Building #09,industrial_building,infrastructure,1021376270,way,,industrial,OpenStreetMap Overpass
+51.5154,0.14701,Ford Dagenham Works Industrial Building #10,industrial_building,infrastructure,1021376271,way,,industrial,OpenStreetMap Overpass
+51.51625,0.14695,Ford Dagenham Works Industrial Building #11,industrial_building,infrastructure,1021376272,way,,industrial,OpenStreetMap Overpass
+51.51669,0.14688,Ford Dagenham Works Industrial Building #12,industrial_building,infrastructure,1021376273,way,,industrial,OpenStreetMap Overpass
+51.51703,0.1485,Ford Dagenham Works Industrial Building #13,industrial_building,infrastructure,1021376274,way,,industrial,OpenStreetMap Overpass
+51.51589,0.14384,Dagenham Dock Industrial Building #08,industrial_building,infrastructure,1021376281,way,,industrial,OpenStreetMap Overpass
+51.51713,0.14212,Dagenham Dock Industrial Building #09,industrial_building,infrastructure,1021376300,way,,industrial,OpenStreetMap Overpass
+51.51726,0.14407,Dagenham Dock Industrial Building #10,industrial_building,infrastructure,1021376301,way,,industrial,OpenStreetMap Overpass
+51.51838,0.14632,Dagenham Dock Brownfield #01,brownfield,decay,1021376303,way,brownfield,,OpenStreetMap Overpass
+51.51792,0.14674,Ford Dagenham Works Industrial Building #14,industrial_building,infrastructure,1021376306,way,,industrial,OpenStreetMap Overpass
+51.51928,0.14132,Dagenham Dock Brownfield #02,brownfield,decay,1021376314,way,brownfield,,OpenStreetMap Overpass
+51.52004,0.13992,Choats Road Industrial Building #02,industrial_building,infrastructure,1021376323,way,,industrial,OpenStreetMap Overpass
+51.5601,0.07355,Thames Gateway Industrial Building #43,industrial_building,infrastructure,1024955785,way,,industrial,OpenStreetMap Overpass
+51.56022,0.07407,Thames Gateway Industrial Building #44,industrial_building,infrastructure,1024955786,way,,industrial,OpenStreetMap Overpass
+51.56027,0.07431,Thames Gateway Industrial Building #45,industrial_building,infrastructure,1024955787,way,,industrial,OpenStreetMap Overpass
+51.56032,0.07461,Thames Gateway Industrial Building #46,industrial_building,infrastructure,1024955788,way,,industrial,OpenStreetMap Overpass
+51.49988,0.15926,Belvedere Industrial Building #33,industrial_building,infrastructure,1025147570,way,,industrial,OpenStreetMap Overpass
+51.50507,0.13581,Blower House,industrial_building,infrastructure,1026740632,way,,industrial,OpenStreetMap Overpass
+51.52957,0.11096,River Road North Construction Site #01,construction,infrastructure,1027258712,way,construction,,OpenStreetMap Overpass
+51.52445,0.16195,Rainham Road South Industrial Site #04,industrial,infrastructure,1027522929,way,industrial,,OpenStreetMap Overpass
+51.51547,0.15807,Boiler House,industrial_building,infrastructure,1027522953,way,,industrial,OpenStreetMap Overpass
+51.52501,0.14689,Chequers Lane Pumping Station,industrial,infrastructure,1027667307,way,industrial,,OpenStreetMap Overpass
+51.52306,0.15812,Pallet Compound,industrial,infrastructure,1027715549,way,industrial,,OpenStreetMap Overpass
+51.52153,0.15636,Maintenance Area,industrial_building,infrastructure,1027715551,way,,industrial,OpenStreetMap Overpass
+51.52163,0.15621,Rainham Road South Industrial Building #02,industrial_building,infrastructure,1027715552,way,,industrial,OpenStreetMap Overpass
+51.52151,0.15615,Rainham Road South Industrial Building #03,industrial_building,infrastructure,1027715553,way,,industrial,OpenStreetMap Overpass
+51.52154,0.1568,Rainham Road South Industrial Building #04,industrial_building,infrastructure,1027715554,way,,industrial,OpenStreetMap Overpass
+51.52144,0.15658,Radiator Packing Shed,industrial_building,infrastructure,1027715555,way,,industrial,OpenStreetMap Overpass
+51.5166,0.15697,Ford Dagenham Works Industrial Building #15,industrial_building,infrastructure,1027715557,way,,industrial,OpenStreetMap Overpass
+51.51677,0.15704,Ford Dagenham Works Industrial Building #16,industrial_building,infrastructure,1027715558,way,,industrial,OpenStreetMap Overpass
+51.51636,0.15677,Ford Dagenham Works Industrial Building #17,industrial_building,infrastructure,1027715559,way,,industrial,OpenStreetMap Overpass
+51.51783,0.15982,Dagenham Dock Industrial Building #11,industrial_building,infrastructure,1027715563,way,,industrial,OpenStreetMap Overpass
+51.51777,0.15947,Dagenham Dock Industrial Building #12,industrial_building,infrastructure,1027715564,way,,industrial,OpenStreetMap Overpass
+51.51697,0.16248,Autotech Workshop,industrial_building,infrastructure,1027715605,way,,industrial,OpenStreetMap Overpass
+51.51618,0.16266,Dagenham Dock East Industrial Building #01,industrial_building,infrastructure,1027717143,way,,industrial,OpenStreetMap Overpass
+51.51619,0.15146,Ford Dagenham Works Industrial Building #18,industrial_building,infrastructure,1028025613,way,,industrial,OpenStreetMap Overpass
+51.49992,0.12256,South Thamesmead (Phase 2),construction,infrastructure,1040945819,way,construction,,OpenStreetMap Overpass
+51.56586,0.18679,Thames Gateway Construction Site #05,construction,infrastructure,1043076960,way,construction,,OpenStreetMap Overpass
+51.54007,0.08077,Barking Construction Site #03,construction,infrastructure,1046610057,way,construction,,OpenStreetMap Overpass
+51.53183,0.07425,Fresh Wharf,construction,infrastructure,1053086495,way,construction,,OpenStreetMap Overpass
+51.52773,0.07919,Thames Gateway Industrial Site #23,industrial,infrastructure,1053086513,way,industrial,,OpenStreetMap Overpass
+51.55466,0.06802,Thames Gateway Industrial Site #24,industrial,infrastructure,1053893550,way,industrial,,OpenStreetMap Overpass
+51.57007,0.0819,Ley Street Depot,industrial_depot,infrastructure,1056727948,way,industrial,,OpenStreetMap Overpass
+51.51561,0.19069,Rainham Industrial Gas #01,industrial_gas,infrastructure,1062991450,way,industrial,,OpenStreetMap Overpass
+51.50208,0.06824,Royal Albert Dock Industrial Site #03,industrial,infrastructure,1066228441,way,industrial,,OpenStreetMap Overpass
+51.50168,0.06833,Royal Albert Dock Industrial Site #04,industrial,infrastructure,1066228442,way,industrial,,OpenStreetMap Overpass
+51.50141,0.07003,Royal Albert Dock Brownfield #05,brownfield,decay,1066228443,way,brownfield,,OpenStreetMap Overpass
+51.50225,0.07192,Royal Albert Dock Industrial Site #05,industrial,infrastructure,1066228444,way,industrial,,OpenStreetMap Overpass
+51.50275,0.07234,Royal Albert Dock Industrial Site #06,industrial,infrastructure,1066228445,way,industrial,,OpenStreetMap Overpass
+51.50324,0.07313,Albert Island,brownfield,decay,1066228447,way,brownfield,,OpenStreetMap Overpass
+51.50432,0.07396,Royal Albert Dock Brownfield #06,brownfield,decay,1066228449,way,brownfield,,OpenStreetMap Overpass
+51.50486,0.07045,Royal Albert Dock Brownfield #07,brownfield,decay,1066228450,way,brownfield,,OpenStreetMap Overpass
+51.53073,0.06227,Thames Gateway Industrial Site #25,industrial,infrastructure,1074610673,way,industrial,,OpenStreetMap Overpass
+51.53344,0.21215,Thames Gateway Abandoned Site #04,abandoned,decay,1079484714,way,,bunker,OpenStreetMap Overpass
+51.52083,0.11859,Barking Riverside,construction,infrastructure,1079741990,way,construction,,OpenStreetMap Overpass
+51.52857,0.087,Access Self Storage,warehouse,infrastructure,1080720828,way,,warehouse,OpenStreetMap Overpass
+51.53444,0.08824,Barking Industrial Site #01,industrial,infrastructure,1082016193,way,industrial,,OpenStreetMap Overpass
+51.52963,0.14662,Chequers Lane Industrial Site #03,industrial,infrastructure,1082063002,way,industrial,,OpenStreetMap Overpass
+51.56274,0.0895,Thames Gateway Brownfield #03,brownfield,decay,1082122906,way,brownfield,,OpenStreetMap Overpass
+51.51803,0.11746,Barking Riverside Brownfield #02,brownfield,decay,1086450449,way,brownfield,,OpenStreetMap Overpass
+51.51718,0.11589,Barking Riverside Brownfield #03,brownfield,decay,1086450450,way,brownfield,,OpenStreetMap Overpass
+51.52834,0.12678,Castle Green Industrial Site #01,industrial,infrastructure,1087552408,way,industrial,,OpenStreetMap Overpass
+51.52768,0.12769,Castle Green Industrial Site #02,industrial,infrastructure,1087552413,way,industrial,,OpenStreetMap Overpass
+51.55193,0.1602,Frizlands Construction Site #01,construction,infrastructure,1088118795,way,construction,,OpenStreetMap Overpass
+51.49006,0.08347,Thames Gateway Industrial Site #26,industrial,infrastructure,1093781492,way,industrial,,OpenStreetMap Overpass
+51.49053,0.08684,Thames Gateway Industrial Site #27,industrial,infrastructure,1093791183,way,industrial,,OpenStreetMap Overpass
+51.49193,0.0891,Lombard Square,construction,infrastructure,1093791184,way,construction,,OpenStreetMap Overpass
+51.53909,0.16512,The Bull Development,construction,infrastructure,1103882887,way,construction,,OpenStreetMap Overpass
+51.49565,0.1015,Nathan Way,industrial_building,infrastructure,1104512014,way,,industrial,OpenStreetMap Overpass
+51.49668,0.10644,Greenwich Reuse and Recycling Centre,waste_facility,decay,1104512104,way,,,OpenStreetMap Overpass
+51.49197,0.16889,Erith Industrial Building #19,industrial_building,infrastructure,1104667686,way,,industrial,OpenStreetMap Overpass
+51.49211,0.1689,Erith Industrial Building #20,industrial_building,infrastructure,1104667687,way,,industrial,OpenStreetMap Overpass
+51.49291,0.17029,Erith Industrial Building #21,industrial_building,infrastructure,1104667688,way,,industrial,OpenStreetMap Overpass
+51.51917,0.16641,Dagenham Dock East Industrial Site #03,industrial,infrastructure,1105720948,way,industrial,,OpenStreetMap Overpass
+51.49079,0.09028,Thames Gateway Construction Site #06,construction,infrastructure,1113421966,way,construction,,OpenStreetMap Overpass
+51.50771,0.11183,Gallions Reach Industrial Building #06,industrial_building,infrastructure,1120519850,way,,industrial,OpenStreetMap Overpass
+51.49897,0.05997,Stories Wharf,construction,infrastructure,1122681055,way,construction,,OpenStreetMap Overpass
+51.52671,0.13444,Barking (HS1) Feeder Station,industrial,infrastructure,1125796546,way,industrial,,OpenStreetMap Overpass
+51.53226,0.0828,Barking Construction Site #04,construction,infrastructure,1126689153,way,construction,,OpenStreetMap Overpass
+51.53154,0.08477,Gascoigne East Phase 3,construction,infrastructure,1126689158,way,construction,,OpenStreetMap Overpass
+51.52846,0.09505,River Road North Warehouse #02,warehouse,infrastructure,1127335046,way,,warehouse,OpenStreetMap Overpass
+51.52166,0.0955,River Road North Industrial Building #18,industrial_building,infrastructure,1127486506,way,,industrial,OpenStreetMap Overpass
+51.52228,0.09878,Industria,industrial_building,infrastructure,1127486508,way,,industrial,OpenStreetMap Overpass
+51.52064,0.06643,Canning Town Industrial Site #01,industrial,infrastructure,1130736865,way,industrial,,OpenStreetMap Overpass
+51.52043,0.06636,Canning Town Industrial Site #02,industrial,infrastructure,1130736867,way,industrial,,OpenStreetMap Overpass
+51.49751,0.1121,Thamesmead Industrial Site #02,industrial,infrastructure,1130874347,way,industrial,,OpenStreetMap Overpass
+51.53976,0.15915,Sterling Industrial Estate Brownfield #01,brownfield,decay,1135770789,way,brownfield,,OpenStreetMap Overpass
+51.51728,0.09846,McGrath,industrial,infrastructure,1136133810,way,industrial,,OpenStreetMap Overpass
+51.51685,0.09887,Suez,industrial,infrastructure,1136133812,way,industrial,,OpenStreetMap Overpass
+51.51594,0.09936,Suez,industrial,infrastructure,1136133813,way,industrial,,OpenStreetMap Overpass
+51.5153,0.10056,S. Norton,industrial,infrastructure,1136133815,way,industrial,,OpenStreetMap Overpass
+51.5223,0.09876,Industria,industrial,infrastructure,1136139455,way,industrial,,OpenStreetMap Overpass
+51.50966,0.17847,Segro Park Ferry Lane,industrial,infrastructure,1137016744,way,industrial,,OpenStreetMap Overpass
+51.51429,0.1818,Dagenham Dock East Industrial Building #02,industrial_building,infrastructure,1137605093,way,,industrial,OpenStreetMap Overpass
+51.51451,0.18283,Dagenham Dock East Industrial Building #03,industrial_building,infrastructure,1137605094,way,,industrial,OpenStreetMap Overpass
+51.51421,0.18547,Smith Brothers Stores Ltd,industrial_building,infrastructure,1137605095,way,,industrial,OpenStreetMap Overpass
+51.51661,0.1879,Lamson Road,industrial_building,infrastructure,1137605096,way,,industrial,OpenStreetMap Overpass
+51.52541,0.13447,Segro Park Dagenham,industrial,infrastructure,1141479202,way,industrial,,OpenStreetMap Overpass
+51.52568,0.13425,Choats Road Industrial Building #03,industrial_building,infrastructure,1141483898,way,,industrial,OpenStreetMap Overpass
+51.52567,0.13482,Choats Road Industrial Building #04,industrial_building,infrastructure,1141483899,way,,industrial,OpenStreetMap Overpass
+51.525,0.13428,Choats Road Industrial Building #05,industrial_building,infrastructure,1141483900,way,,industrial,OpenStreetMap Overpass
+51.54328,0.06027,Thames Gateway Brownfield #04,brownfield,decay,1148206791,way,brownfield,,OpenStreetMap Overpass
+51.54476,0.06387,Thames Gateway Brownfield #05,brownfield,decay,1148206807,way,brownfield,,OpenStreetMap Overpass
+51.55036,0.07446,Thames Gateway Industrial Site #28,industrial,infrastructure,1155313834,way,industrial,,OpenStreetMap Overpass
+51.5064,0.10647,Gallions Reach Brownfield #01,brownfield,decay,1155632032,way,brownfield,,OpenStreetMap Overpass
+51.5597,0.07807,Thames Gateway Brownfield #06,brownfield,decay,1156039127,way,brownfield,,OpenStreetMap Overpass
+51.56114,0.07634,Thames Gateway Industrial Depot #01,industrial_depot,infrastructure,1156465439,way,industrial,,OpenStreetMap Overpass
+51.52918,0.07365,Canning Town Industrial Site #03,industrial,infrastructure,1157986676,way,industrial,,OpenStreetMap Overpass
+51.52839,0.07879,Thames Gateway Industrial Site #29,industrial,infrastructure,1157986678,way,industrial,,OpenStreetMap Overpass
+51.55821,0.06376,Thames Gateway Industrial Site #30,industrial,infrastructure,1159640126,way,industrial,,OpenStreetMap Overpass
+51.52343,0.07785,Eric Clarke Lane,industrial_natural_gas,infrastructure,1162642120,way,industrial,,OpenStreetMap Overpass
+51.49922,0.08729,Thamesmead West Industrial Site #02,industrial,infrastructure,1177174854,way,industrial,,OpenStreetMap Overpass
+51.49184,0.07342,Woolwich Construction Site #05,construction,infrastructure,1184180856,way,construction,,OpenStreetMap Overpass
+51.49183,0.0732,Woolwich Chimney Stack #02,chimney_stack,infrastructure,1184208821,way,,,OpenStreetMap Overpass
+51.49547,0.08228,Thamesmead West Construction Site #01,construction,infrastructure,1186077804,way,construction,,OpenStreetMap Overpass
+51.50079,0.06836,Royal Albert Dock Brownfield #08,brownfield,decay,1186769640,way,brownfield,,OpenStreetMap Overpass
+51.49023,0.1942,Thames Gateway Industrial Site #31,industrial,infrastructure,1187610695,way,industrial,,OpenStreetMap Overpass
+51.52106,0.2218,Rainham Brownfield #01,brownfield,decay,1187614442,way,brownfield,,OpenStreetMap Overpass
+51.48933,0.07002,Woolwich Brownfield #02,brownfield,decay,1191627285,way,brownfield,,OpenStreetMap Overpass
+51.52249,0.06646,Canning Town Waste Facility #06,waste_facility,decay,1192164945,way,,,OpenStreetMap Overpass
+51.49051,0.07252,Woolwich Brownfield #03,brownfield,decay,1201804814,way,brownfield,,OpenStreetMap Overpass
+51.53107,0.08258,Barking Construction Site #05,construction,infrastructure,1207499643,way,construction,,OpenStreetMap Overpass
+51.53245,0.07668,Barking Construction Site #06,construction,infrastructure,1207499645,way,construction,,OpenStreetMap Overpass
+51.53494,0.0789,Axe Street,construction,infrastructure,1207505438,way,construction,,OpenStreetMap Overpass
+51.49069,0.16779,Erith Construction Site #02,construction,infrastructure,1208784848,way,construction,,OpenStreetMap Overpass
+51.48821,0.14678,Erith Waste Facility #05,waste_facility,decay,1211217736,way,,,OpenStreetMap Overpass
+51.52617,0.09346,South Building,warehouse,infrastructure,1229878279,way,,warehouse,OpenStreetMap Overpass
+51.56903,0.1199,Thames Gateway Industrial Site #32,industrial,infrastructure,1242284845,way,industrial,,OpenStreetMap Overpass
+51.56888,0.11959,Thames Gateway Brownfield #07,brownfield,decay,1242284846,way,brownfield,,OpenStreetMap Overpass
+51.51274,0.07594,Beckton DLR Depot Expansion,construction,infrastructure,1242484725,way,construction,,OpenStreetMap Overpass
+51.50899,0.13794,Oil Store,industrial_building,infrastructure,1251925256,way,,industrial,OpenStreetMap Overpass
+51.56883,0.18784,Thames Gateway Industrial Building #47,industrial_building,infrastructure,1252494448,way,,industrial,OpenStreetMap Overpass
+51.56867,0.18734,Thames Gateway Industrial Building #48,industrial_building,infrastructure,1252494449,way,,industrial,OpenStreetMap Overpass
+51.56905,0.18911,Thames Gateway Industrial Building #49,industrial_building,infrastructure,1252494450,way,,industrial,OpenStreetMap Overpass
+51.56947,0.18944,Thames Gateway Industrial Building #50,industrial_building,infrastructure,1252494451,way,,industrial,OpenStreetMap Overpass
+51.56975,0.18865,Thames Gateway Industrial Building #51,industrial_building,infrastructure,1252494452,way,,industrial,OpenStreetMap Overpass
+51.56971,0.18784,Thames Gateway Industrial Building #52,industrial_building,infrastructure,1252494453,way,,industrial,OpenStreetMap Overpass
+51.50875,0.1401,Crossness Industrial Building #60,industrial_building,infrastructure,1253163225,way,,industrial,OpenStreetMap Overpass
+51.50885,0.14019,Crossness Industrial Building #61,industrial_building,infrastructure,1253163226,way,,industrial,OpenStreetMap Overpass
+51.50871,0.13883,Crossness Industrial Building #62,industrial_building,infrastructure,1253163229,way,,industrial,OpenStreetMap Overpass
+51.50871,0.13872,Crossness Industrial Building #63,industrial_building,infrastructure,1253163230,way,,industrial,OpenStreetMap Overpass
+51.50835,0.13918,Crossness Industrial Building #64,industrial_building,infrastructure,1253163257,way,,industrial,OpenStreetMap Overpass
+51.50853,0.13961,Overhead Sludge Tank,industrial_building,infrastructure,1253163260,way,,industrial,OpenStreetMap Overpass
+51.50838,0.14001,Overhead Sludge Tank,industrial_building,infrastructure,1253163261,way,,industrial,OpenStreetMap Overpass
+51.50853,0.13989,Crossness Industrial Building #65,industrial_building,infrastructure,1253163262,way,,industrial,OpenStreetMap Overpass
+51.54482,0.11357,Thames Gateway Brownfield #08,brownfield,decay,1253257212,way,brownfield,,OpenStreetMap Overpass
+51.51445,0.07367,Gas pressure reduction station,industrial_gas_plant,infrastructure,1253398780,way,industrial,,OpenStreetMap Overpass
+51.50668,0.13421,Crossness Industrial Building #66,industrial_building,infrastructure,1253798617,way,,industrial,OpenStreetMap Overpass
+51.50847,0.14154,Crossness Chimney Stack #01,chimney_stack,infrastructure,1253799972,way,,service,OpenStreetMap Overpass
+51.50661,0.14382,Crossness Industrial Building #67,industrial_building,infrastructure,1253878947,way,,industrial,OpenStreetMap Overpass
+51.5065,0.14371,Crossness Industrial Building #68,industrial_building,infrastructure,1253878948,way,,industrial,OpenStreetMap Overpass
+51.50785,0.14092,Crossness Chimney Stack #02,chimney_stack,infrastructure,1253878950,way,,service,OpenStreetMap Overpass
+51.56804,0.16296,Thames Gateway Industrial Site #33,industrial,infrastructure,1254316774,way,industrial,,OpenStreetMap Overpass
+51.56826,0.1668,Thames Gateway Industrial Site #34,industrial,infrastructure,1254316775,way,industrial,,OpenStreetMap Overpass
+51.56804,0.15794,Thames Gateway Industrial Site #35,industrial,infrastructure,1254316776,way,industrial,,OpenStreetMap Overpass
+51.5694,0.15014,Thames Gateway Industrial Site #36,industrial,infrastructure,1254316778,way,industrial,,OpenStreetMap Overpass
+51.56539,0.10622,Thames Gateway Construction Site #07,construction,infrastructure,1254321802,way,construction,,OpenStreetMap Overpass
+51.50379,0.14575,Final Settlement Tanks,industrial,infrastructure,1254325212,way,industrial,,OpenStreetMap Overpass
+51.50223,0.14221,Crossness Industrial Building #69,industrial_building,infrastructure,1254325213,way,,industrial,OpenStreetMap Overpass
+51.50289,0.14415,Crossness Industrial Building #70,industrial_building,infrastructure,1254325221,way,,industrial,OpenStreetMap Overpass
+51.50278,0.14334,Crossness Industrial Building #71,industrial_building,infrastructure,1254325222,way,,industrial,OpenStreetMap Overpass
+51.50662,0.14676,Thames Gateway Industrial Building #53,industrial_building,infrastructure,1254327719,way,,industrial,OpenStreetMap Overpass
+51.50766,0.14068,Crossness Industrial Building #72,industrial_building,infrastructure,1254327723,way,,industrial,OpenStreetMap Overpass
+51.5077,0.14056,Crossness Industrial Building #73,industrial_building,infrastructure,1254327724,way,,industrial,OpenStreetMap Overpass
+51.50775,0.14044,Crossness Industrial Building #74,industrial_building,infrastructure,1254327725,way,,industrial,OpenStreetMap Overpass
+51.5081,0.14021,Crossness Chimney Stack #03,chimney_stack,infrastructure,1254327729,way,,service,OpenStreetMap Overpass
+51.55878,0.06674,Network Rail Ilford Depot,industrial,infrastructure,1254607177,way,industrial,,OpenStreetMap Overpass
+51.5071,0.14449,Crossness Industrial Site #01,industrial,infrastructure,1254763759,way,industrial,,OpenStreetMap Overpass
+51.50721,0.14458,Crossness Industrial Site #02,industrial,infrastructure,1254763760,way,industrial,,OpenStreetMap Overpass
+51.50712,0.14451,Crossness Chimney Stack #04,chimney_stack,infrastructure,1254763761,way,,service,OpenStreetMap Overpass
+51.50719,0.14457,Crossness Chimney Stack #05,chimney_stack,infrastructure,1254763762,way,,service,OpenStreetMap Overpass
+51.508,0.14153,Crossness Industrial Building #75,industrial_building,infrastructure,1254763796,way,,industrial,OpenStreetMap Overpass
+51.50506,0.13904,Crossness Industrial Building #76,industrial_building,infrastructure,1255173548,way,,industrial,OpenStreetMap Overpass
+51.50556,0.13678,Crossness Industrial Building #77,industrial_building,infrastructure,1255176950,way,,industrial,OpenStreetMap Overpass
+51.50184,0.22621,Thames Gateway Industrial Site #37,industrial,infrastructure,1257540063,way,industrial,,OpenStreetMap Overpass
+51.52774,0.07086,Newham Vehicle Pound,industrial_depot,infrastructure,1262366972,way,industrial,,OpenStreetMap Overpass
+51.48295,0.17014,Moosh Ltd.,waste_facility,decay,1265236330,way,,commercial,OpenStreetMap Overpass
+51.48334,0.1702,ARB Recycling Ltd.,waste_facility,decay,1265236337,way,,commercial,OpenStreetMap Overpass
+51.48416,0.16855,Erith Industrial Building #22,industrial_building,infrastructure,1265236382,way,,industrial,OpenStreetMap Overpass
+51.48421,0.16849,Erith Industrial Building #23,industrial_building,infrastructure,1265236383,way,,industrial,OpenStreetMap Overpass
+51.48425,0.16862,Erith Industrial Building #24,industrial_building,infrastructure,1265236386,way,,industrial,OpenStreetMap Overpass
+51.48238,0.17232,Europa Trading Estate,industrial,infrastructure,1265243642,way,industrial,,OpenStreetMap Overpass
+51.48282,0.16887,Batt Cables plc,industrial_factory,infrastructure,1265243643,way,industrial,,OpenStreetMap Overpass
+51.48317,0.17194,Hamlet International Industrial Estate,industrial,infrastructure,1265243644,way,industrial,,OpenStreetMap Overpass
+51.48202,0.17708,Erith Industrial Building #25,industrial_building,infrastructure,1266169169,way,,industrial,OpenStreetMap Overpass
+51.48357,0.16858,Erith Industrial Building #26,industrial_building,infrastructure,1266672102,way,,industrial,OpenStreetMap Overpass
+51.48224,0.16695,Metro Service Centre,abandoned,decay,1267021805,way,,yes,OpenStreetMap Overpass
+51.48216,0.16709,Tile Giant,abandoned,decay,1267021806,way,,yes,OpenStreetMap Overpass
+51.48208,0.16723,Bathstore Ltd.,abandoned,decay,1267021807,way,,yes,OpenStreetMap Overpass
+51.48198,0.16741,Erith Abandoned Site #01,abandoned,decay,1267021808,way,,commercial,OpenStreetMap Overpass
+51.48187,0.16761,Topps Tiles,abandoned,decay,1267021809,way,,yes,OpenStreetMap Overpass
+51.48212,0.16734,Atlas Trade Park,industrial,infrastructure,1267021812,way,industrial,,OpenStreetMap Overpass
+51.48144,0.16879,Madford Trade Park,industrial,infrastructure,1267021813,way,industrial,,OpenStreetMap Overpass
+51.48127,0.17011,Erith Industrial Building #27,industrial_building,infrastructure,1267021814,way,,industrial,OpenStreetMap Overpass
+51.56554,0.13468,Thames Gateway Industrial Building #54,industrial_building,infrastructure,1275388213,way,,industrial,OpenStreetMap Overpass
+51.56511,0.13365,Thames Gateway Industrial Building #55,industrial_building,infrastructure,1275388214,way,,industrial,OpenStreetMap Overpass
+51.56491,0.13281,Thames Gateway Industrial Building #56,industrial_building,infrastructure,1275388215,way,,industrial,OpenStreetMap Overpass
+51.56531,0.1357,Thames Gateway Industrial Building #57,industrial_building,infrastructure,1275388216,way,,industrial,OpenStreetMap Overpass
+51.56577,0.13595,Thames Gateway Industrial Building #58,industrial_building,infrastructure,1275388217,way,,industrial,OpenStreetMap Overpass
+51.56646,0.13704,Thames Gateway Industrial Building #59,industrial_building,infrastructure,1275388218,way,,industrial,OpenStreetMap Overpass
+51.56825,0.13932,Thames Gateway Industrial Building #60,industrial_building,infrastructure,1275388219,way,,industrial,OpenStreetMap Overpass
+51.56824,0.14033,Thames Gateway Industrial Building #61,industrial_building,infrastructure,1275388220,way,,industrial,OpenStreetMap Overpass
+51.56878,0.1411,Thames Gateway Industrial Building #62,industrial_building,infrastructure,1275388221,way,,industrial,OpenStreetMap Overpass
+51.56886,0.14217,Thames Gateway Industrial Building #63,industrial_building,infrastructure,1275388222,way,,industrial,OpenStreetMap Overpass
+51.56895,0.14329,Thames Gateway Industrial Building #64,industrial_building,infrastructure,1275388223,way,,industrial,OpenStreetMap Overpass
+51.56823,0.14382,Thames Gateway Industrial Building #65,industrial_building,infrastructure,1275388224,way,,industrial,OpenStreetMap Overpass
+51.56823,0.14224,Thames Gateway Industrial Building #66,industrial_building,infrastructure,1275388225,way,,industrial,OpenStreetMap Overpass
+51.56783,0.14326,Thames Gateway Industrial Building #67,industrial_building,infrastructure,1275388226,way,,industrial,OpenStreetMap Overpass
+51.56841,0.14306,Thames Gateway Industrial Building #68,industrial_building,infrastructure,1275388227,way,,industrial,OpenStreetMap Overpass
+51.53394,0.07265,Thames Gateway Construction Site #08,construction,infrastructure,1280390334,way,construction,,OpenStreetMap Overpass
+51.52549,0.06455,R/O 28/30 Gooseley Lane,industrial_storage,infrastructure,1285503835,way,industrial,,OpenStreetMap Overpass
+51.52109,0.18366,Rainham Industrial Scrap Yard #01,industrial_scrap_yard,infrastructure,1285510060,way,industrial,,OpenStreetMap Overpass
+51.51818,0.06483,London Industrial Park,industrial,infrastructure,1287613518,way,industrial,,OpenStreetMap Overpass
+51.51702,0.0654,London Industrial Park,industrial,infrastructure,1287613520,way,industrial,,OpenStreetMap Overpass
+51.56535,0.22133,Rainham North Industrial Building #01,industrial_building,infrastructure,1287684816,way,,industrial,OpenStreetMap Overpass
+51.56521,0.22178,Rainham North Industrial Building #02,industrial_building,infrastructure,1287684817,way,,industrial,OpenStreetMap Overpass
+51.56534,0.22165,Rainham North Industrial Building #03,industrial_building,infrastructure,1287684818,way,,industrial,OpenStreetMap Overpass
+51.56521,0.22148,Rainham North Industrial Site #01,industrial,infrastructure,1287684819,way,industrial,,OpenStreetMap Overpass
+51.56984,0.16752,Thames Gateway Industrial Building #69,industrial_building,infrastructure,1287728254,way,,industrial,OpenStreetMap Overpass
+51.56973,0.16657,Thames Gateway Industrial Building #70,industrial_building,infrastructure,1287728255,way,,industrial,OpenStreetMap Overpass
+51.56979,0.1672,Thames Gateway Industrial Building #71,industrial_building,infrastructure,1287728256,way,,industrial,OpenStreetMap Overpass
+51.57015,0.16412,Thames Gateway Industrial Building #72,industrial_building,infrastructure,1287728261,way,,industrial,OpenStreetMap Overpass
+51.56965,0.16569,Thames Gateway Industrial Building #73,industrial_building,infrastructure,1287728262,way,,industrial,OpenStreetMap Overpass
+51.56945,0.16531,Thames Gateway Industrial Building #74,industrial_building,infrastructure,1287728263,way,,industrial,OpenStreetMap Overpass
+51.56925,0.16459,Thames Gateway Industrial Building #75,industrial_building,infrastructure,1287728264,way,,industrial,OpenStreetMap Overpass
+51.56963,0.16451,Thames Gateway Industrial Building #76,industrial_building,infrastructure,1287728265,way,,industrial,OpenStreetMap Overpass
+51.56993,0.16047,Thames Gateway Industrial Building #77,industrial_building,infrastructure,1287728267,way,,industrial,OpenStreetMap Overpass
+51.56983,0.15913,Thames Gateway Industrial Building #78,industrial_building,infrastructure,1287728268,way,,industrial,OpenStreetMap Overpass
+51.5695,0.16074,Thames Gateway Industrial Building #79,industrial_building,infrastructure,1287728269,way,,industrial,OpenStreetMap Overpass
+51.56887,0.16043,Thames Gateway Industrial Building #80,industrial_building,infrastructure,1287728270,way,,industrial,OpenStreetMap Overpass
+51.56868,0.15976,Thames Gateway Industrial Building #81,industrial_building,infrastructure,1287728271,way,,industrial,OpenStreetMap Overpass
+51.56942,0.1585,Thames Gateway Industrial Building #82,industrial_building,infrastructure,1287728272,way,,industrial,OpenStreetMap Overpass
+51.56896,0.15852,Thames Gateway Industrial Building #83,industrial_building,infrastructure,1287728273,way,,industrial,OpenStreetMap Overpass
+51.56928,0.15779,Thames Gateway Industrial Building #84,industrial_building,infrastructure,1287728274,way,,industrial,OpenStreetMap Overpass
+51.56941,0.15816,Thames Gateway Industrial Building #85,industrial_building,infrastructure,1287728275,way,,industrial,OpenStreetMap Overpass
+51.56906,0.15826,Thames Gateway Industrial Building #86,industrial_building,infrastructure,1287728276,way,,industrial,OpenStreetMap Overpass
+51.56901,0.15687,Thames Gateway Industrial Building #87,industrial_building,infrastructure,1287728277,way,,industrial,OpenStreetMap Overpass
+51.55086,0.15757,Frizlands Industrial Building #01,industrial_building,infrastructure,1288281999,way,,industrial,OpenStreetMap Overpass
+51.55031,0.15768,Frizlands Industrial Building #02,industrial_building,infrastructure,1288282000,way,,industrial,OpenStreetMap Overpass
+51.55027,0.15673,Frizlands Industrial Building #03,industrial_building,infrastructure,1288282001,way,,industrial,OpenStreetMap Overpass
+51.55042,0.15578,Frizlands Industrial Building #04,industrial_building,infrastructure,1288282002,way,,industrial,OpenStreetMap Overpass
+51.54897,0.16042,Dagenham North Industrial Building #03,industrial_building,infrastructure,1288282003,way,,industrial,OpenStreetMap Overpass
+51.54975,0.1607,Dagenham North Industrial Building #04,industrial_building,infrastructure,1288282004,way,,industrial,OpenStreetMap Overpass
+51.55005,0.16069,Frizlands Industrial Building #05,industrial_building,infrastructure,1288282005,way,,industrial,OpenStreetMap Overpass
+51.55037,0.16083,Frizlands Industrial Building #06,industrial_building,infrastructure,1288282006,way,,industrial,OpenStreetMap Overpass
+51.54985,0.16133,Dagenham North Industrial Building #05,industrial_building,infrastructure,1288282007,way,,industrial,OpenStreetMap Overpass
+51.5487,0.15942,Dagenham North Industrial Building #06,industrial_building,infrastructure,1288282008,way,,industrial,OpenStreetMap Overpass
+51.54856,0.15979,Dagenham North Industrial Building #07,industrial_building,infrastructure,1288282009,way,,industrial,OpenStreetMap Overpass
+51.54877,0.15837,Dagenham North Industrial Building #08,industrial_building,infrastructure,1288282010,way,,industrial,OpenStreetMap Overpass
+51.54821,0.15845,Dagenham North Industrial Building #09,industrial_building,infrastructure,1288282011,way,,industrial,OpenStreetMap Overpass
+51.54891,0.1559,Dagenham North Industrial Building #10,industrial_building,infrastructure,1288282012,way,,industrial,OpenStreetMap Overpass
+51.54808,0.15563,Dagenham North Industrial Building #11,industrial_building,infrastructure,1288282013,way,,industrial,OpenStreetMap Overpass
+51.54757,0.15802,Dagenham North Industrial Building #12,industrial_building,infrastructure,1288282014,way,,industrial,OpenStreetMap Overpass
+51.54785,0.15788,Dagenham North Industrial Building #13,industrial_building,infrastructure,1288282015,way,,industrial,OpenStreetMap Overpass
+51.54821,0.15787,Dagenham North Industrial Building #14,industrial_building,infrastructure,1288282016,way,,industrial,OpenStreetMap Overpass
+51.54855,0.15801,City Electrical Factors,industrial_building,infrastructure,1288282017,way,,industrial,OpenStreetMap Overpass
+51.54855,0.15699,1stKidsWholesale,industrial_building,infrastructure,1288282018,way,,industrial,OpenStreetMap Overpass
+51.549,0.15724,Dagenham North Industrial Building #15,industrial_building,infrastructure,1288282019,way,,industrial,OpenStreetMap Overpass
+51.54921,0.1571,Dagenham North Industrial Building #16,industrial_building,infrastructure,1288282020,way,,industrial,OpenStreetMap Overpass
+51.54939,0.15708,Dagenham North Industrial Building #17,industrial_building,infrastructure,1288282021,way,,industrial,OpenStreetMap Overpass
+51.54965,0.15695,Dagenham North Industrial Building #18,industrial_building,infrastructure,1288282022,way,,industrial,OpenStreetMap Overpass
+51.54975,0.15759,Dagenham North Industrial Building #19,industrial_building,infrastructure,1288282023,way,,industrial,OpenStreetMap Overpass
+51.48887,0.07304,Woolwich Construction Site #06,construction,infrastructure,1289003989,way,construction,,OpenStreetMap Overpass
+51.56125,0.14347,Frizlands Brownfield #01,brownfield,decay,1290203296,way,brownfield,,OpenStreetMap Overpass
+51.51429,0.08525,Gemini Business Park,industrial_building,infrastructure,1290465893,way,,industrial,OpenStreetMap Overpass
+51.5147,0.08655,Gemini Business Park,industrial_building,infrastructure,1290465894,way,,industrial,OpenStreetMap Overpass
+51.53325,0.06517,Thames Gateway Brownfield #09,brownfield,decay,1294727798,way,brownfield,,OpenStreetMap Overpass
+51.53324,0.06494,Thames Gateway Brownfield #10,brownfield,decay,1294727800,way,brownfield,,OpenStreetMap Overpass
+51.56404,0.13354,Thames Gateway Industrial Building #88,industrial_building,infrastructure,1296644647,way,,industrial,OpenStreetMap Overpass
+51.55711,0.16139,Frizlands Industrial Building #07,industrial_building,infrastructure,1298792665,way,,industrial,OpenStreetMap Overpass
+51.55685,0.16159,Frizlands Industrial Building #08,industrial_building,infrastructure,1298792666,way,,industrial,OpenStreetMap Overpass
+51.557,0.1616,Frizlands Industrial Building #09,industrial_building,infrastructure,1298792667,way,,industrial,OpenStreetMap Overpass
+51.55696,0.1617,Frizlands Industrial Building #10,industrial_building,infrastructure,1298792668,way,,industrial,OpenStreetMap Overpass
+51.55694,0.1618,Frizlands Industrial Building #11,industrial_building,infrastructure,1298792669,way,,industrial,OpenStreetMap Overpass
+51.55603,0.1617,Frizlands Industrial Building #12,industrial_building,infrastructure,1298792670,way,,industrial,OpenStreetMap Overpass
+51.55877,0.127,Becontree Brownfield #01,brownfield,decay,1299079580,way,brownfield,,OpenStreetMap Overpass
+51.52808,0.08758,Valor Park Kingsbridge Road,industrial,infrastructure,1302659212,way,industrial,,OpenStreetMap Overpass
+51.53395,0.08435,Barking Construction Site #07,construction,infrastructure,1303036295,way,construction,,OpenStreetMap Overpass
+51.56836,0.14419,Thames Gateway Industrial Site #38,industrial,infrastructure,1305734698,way,industrial,,OpenStreetMap Overpass
+51.54683,0.17535,Thames Gateway Industrial Site #39,industrial,infrastructure,1305738805,way,industrial,,OpenStreetMap Overpass
+51.50354,0.16202,Belvedere Industrial Building #34,industrial_building,infrastructure,1306145464,way,,industrial,OpenStreetMap Overpass
+51.50086,0.16018,Belvedere Industrial Building #35,industrial_building,infrastructure,1306145466,way,,industrial,OpenStreetMap Overpass
+51.54855,0.15734,Bents Plant Hire,industrial_building,infrastructure,1306258280,way,,industrial,OpenStreetMap Overpass
+51.49046,0.06902,Woolwich Brownfield #04,brownfield,decay,1316563652,way,brownfield,,OpenStreetMap Overpass
+51.49031,0.06965,Woolwich Brownfield #05,brownfield,decay,1316563654,way,brownfield,,OpenStreetMap Overpass
+51.55742,0.06849,Thames Gateway Abandoned Site #05,abandoned,decay,1321758622,way,,,OpenStreetMap Overpass
+51.55036,0.09225,Thames Gateway Construction Site #09,construction,infrastructure,1324636139,way,construction,,OpenStreetMap Overpass
+51.56923,0.10517,Thames Gateway Brownfield #11,brownfield,decay,1333111338,way,brownfield,,OpenStreetMap Overpass
+51.56514,0.06801,Thames Gateway Industrial Building #89,industrial_building,infrastructure,1335329523,way,,industrial,OpenStreetMap Overpass
+51.47742,0.19155,Darent Industrial Park Industrial Site #01,industrial,infrastructure,1338250065,way,industrial,,OpenStreetMap Overpass
+51.49522,0.09843,Thamesmead West Industrial Site #03,industrial,infrastructure,1343614341,way,industrial,,OpenStreetMap Overpass
+51.49633,0.10202,Thamesmead West Brownfield #01,brownfield,decay,1343614357,way,brownfield,,OpenStreetMap Overpass
+51.49629,0.1004,Thamesmead West Brownfield #02,brownfield,decay,1343620489,way,brownfield,,OpenStreetMap Overpass
+51.4946,0.10219,Thames Gateway Industrial Site #40,industrial,infrastructure,1343620509,way,industrial,,OpenStreetMap Overpass
+51.4919,0.09543,Thames Gateway Brownfield #12,brownfield,decay,1343620517,way,brownfield,,OpenStreetMap Overpass
+51.49065,0.09269,Thames Gateway Industrial Site #41,industrial,infrastructure,1343620520,way,industrial,,OpenStreetMap Overpass
+51.50291,0.06047,Charing Cross Pier,abandoned,decay,1365946972,way,,,OpenStreetMap Overpass
+51.50321,0.07427,Royal Albert Dock Abandoned Site #01,abandoned,decay,1368482771,way,,yes,OpenStreetMap Overpass
+51.50315,0.07449,Royal Albert Dock Abandoned Site #02,abandoned,decay,1368482778,way,,yes,OpenStreetMap Overpass
+51.48083,0.14516,Vinton Metals,industrial_scrap_yard,infrastructure,1376735243,way,industrial,,OpenStreetMap Overpass
+51.48928,0.0669,"London Square, Woolwich",construction,infrastructure,1380440017,way,construction,,OpenStreetMap Overpass
+51.50373,0.0765,Royal Albert Dock Brownfield #09,brownfield,decay,1381140130,way,brownfield,,OpenStreetMap Overpass
+51.50476,0.07685,Royal Albert Dock Industrial Building #09,industrial_building,infrastructure,1381140136,way,,industrial,OpenStreetMap Overpass
+51.50514,0.07698,Royal Albert Dock Industrial Building #10,industrial_building,infrastructure,1381140137,way,,industrial,OpenStreetMap Overpass
+51.5051,0.07672,Royal Albert Dock Industrial Building #11,industrial_building,infrastructure,1381140141,way,,industrial,OpenStreetMap Overpass
+51.55068,0.15958,Frizlands Construction Site #02,construction,infrastructure,1390106398,way,construction,,OpenStreetMap Overpass
+51.52999,0.07997,Thames Gateway Industrial Building #90,industrial_building,infrastructure,1410843846,way,,industrial,OpenStreetMap Overpass
+51.52945,0.08003,Valor Park East Circular Phase 1,industrial,infrastructure,1410843847,way,industrial,,OpenStreetMap Overpass
+51.52923,0.08187,Thames Gateway Industrial Site #42,industrial,infrastructure,1410843848,way,industrial,,OpenStreetMap Overpass
+51.53038,0.08104,Barking Industrial Building #02,industrial_building,infrastructure,1410843849,way,,industrial,OpenStreetMap Overpass
+51.52669,0.08018,Unit 100,industrial_building,infrastructure,1410843850,way,,industrial,OpenStreetMap Overpass
+51.52666,0.08121,Unit 200,industrial_building,infrastructure,1410843851,way,,industrial,OpenStreetMap Overpass
+51.52577,0.0798,Unit 300,industrial_building,infrastructure,1410843852,way,,industrial,OpenStreetMap Overpass
+51.52583,0.08115,Unit 400,industrial_building,infrastructure,1410843853,way,,industrial,OpenStreetMap Overpass
+51.52083,0.06777,Canning Town Industrial Site #04,industrial,infrastructure,1410844521,way,industrial,,OpenStreetMap Overpass
+51.52634,0.09543,River Road North Industrial Site #06,industrial,infrastructure,1410844921,way,industrial,,OpenStreetMap Overpass
+51.51017,0.07954,Beckton Riverside Phase 1,brownfield,decay,1414618912,way,brownfield,,OpenStreetMap Overpass
+51.52688,0.12177,Choats Road (Barking) SPS,sewage,decay,1419913745,way,,,OpenStreetMap Overpass
+51.52407,0.10103,River Road North Industrial Building #19,industrial_building,infrastructure,1420779175,way,,industrial,OpenStreetMap Overpass
+51.52462,0.10104,River Road North Industrial Building #20,industrial_building,infrastructure,1420779178,way,,industrial,OpenStreetMap Overpass
+51.52436,0.10107,River Road North Industrial Site #07,industrial,infrastructure,1420779183,way,industrial,,OpenStreetMap Overpass
+51.52531,0.11393,River Road North Industrial Site #08,industrial,infrastructure,1423060540,way,industrial,,OpenStreetMap Overpass
+51.52461,0.10526,River Road North Brownfield #01,brownfield,decay,1423060552,way,brownfield,,OpenStreetMap Overpass
+51.50785,0.07935,Royal Albert Dock Industrial Building #12,industrial_building,infrastructure,1429902062,way,,industrial,OpenStreetMap Overpass
+51.50541,0.1788,Thames Gateway Industrial Building #91,industrial_building,infrastructure,1429903293,way,,industrial,OpenStreetMap Overpass
+51.50545,0.17871,Thames Gateway Industrial Building #92,industrial_building,infrastructure,1429903294,way,,industrial,OpenStreetMap Overpass
+51.50539,0.17871,Thames Gateway Industrial Communication #01,industrial_communication,infrastructure,1429903297,way,industrial,,OpenStreetMap Overpass
+51.54345,0.07597,Barking Construction Site #08,construction,infrastructure,1431575401,way,construction,,OpenStreetMap Overpass
+51.50243,0.07407,Royal Albert Dock Industrial Building #13,industrial_building,infrastructure,1434039688,way,,industrial,OpenStreetMap Overpass
+51.50306,0.07057,Royal Albert Dock Industrial Building #14,industrial_building,infrastructure,1434042188,way,,industrial,OpenStreetMap Overpass
+51.50311,0.07033,Royal Albert Dock Industrial Building #15,industrial_building,infrastructure,1434042189,way,,industrial,OpenStreetMap Overpass
+51.50255,0.07031,Royal Albert Dock Industrial Building #16,industrial_building,infrastructure,1434042190,way,,industrial,OpenStreetMap Overpass
+51.5026,0.07008,Royal Albert Dock Industrial Building #17,industrial_building,infrastructure,1434042191,way,,industrial,OpenStreetMap Overpass
+51.50274,0.0735,Royal Albert Dock Industrial Building #18,industrial_building,infrastructure,1434060859,way,,industrial,OpenStreetMap Overpass
+51.50192,0.07304,Royal Albert Dock Industrial Building #19,industrial_building,infrastructure,1434060864,way,,industrial,OpenStreetMap Overpass
+51.55496,0.06571,Thames Gateway Industrial Site #43,industrial,infrastructure,1444539044,way,industrial,,OpenStreetMap Overpass
+51.56415,0.21793,Rainham North Construction Site #01,construction,infrastructure,1465287093,way,construction,,OpenStreetMap Overpass
+51.489,0.06937,Woolwich Construction Site #07,construction,infrastructure,1467072156,way,construction,,OpenStreetMap Overpass
+51.52893,0.10931,River Road North Construction Site #02,construction,infrastructure,1471477448,way,construction,,OpenStreetMap Overpass
+51.4895,0.12091,Thames Gateway Construction Site #10,construction,infrastructure,1471795473,way,construction,,OpenStreetMap Overpass
+51.52029,0.10316,River Road North Construction Site #03,construction,infrastructure,1475409024,way,construction,,OpenStreetMap Overpass
+51.51926,0.10321,River Road Construction Site #01,construction,infrastructure,1475512210,way,construction,,OpenStreetMap Overpass
+51.47806,0.21162,Darent Industrial Park,industrial,infrastructure,8644334,relation,industrial,,OpenStreetMap Overpass
+51.52606,0.14955,Hope Construction Materials,industrial,infrastructure,13757587,relation,industrial,,OpenStreetMap Overpass
+51.52318,0.11973,Barking Riverside,construction,infrastructure,14171440,relation,construction,,OpenStreetMap Overpass
+51.51848,0.1577,Ford Dagenham,industrial,infrastructure,14716891,relation,industrial,,OpenStreetMap Overpass
+51.51928,0.117,Barking Riverside town centre,construction,infrastructure,15541141,relation,construction,,OpenStreetMap Overpass
+51.49258,0.07613,io Centre,industrial,infrastructure,15956204,relation,industrial,,OpenStreetMap Overpass
+51.52497,0.16438,Beam Park (Phase 2a),construction,infrastructure,17478054,relation,construction,,OpenStreetMap Overpass
+</script>
+
+</body>
+</html>

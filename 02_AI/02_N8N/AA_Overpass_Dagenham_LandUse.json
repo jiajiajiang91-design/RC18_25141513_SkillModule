@@ -1,0 +1,121 @@
+{
+  "name": "AA School WS Overpass Dagenham Land Use",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-200, 300],
+      "id": "trigger-1",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://overpass-api.de/api/interpreter",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data",
+              "value": "[out:json][timeout:300][bbox:51.48,0.06,51.57,0.23];\n(\n  node[\"landuse\"=\"industrial\"];\n  way[\"landuse\"=\"industrial\"];\n  relation[\"landuse\"=\"industrial\"];\n  node[\"landuse\"=\"brownfield\"];\n  way[\"landuse\"=\"brownfield\"];\n  relation[\"landuse\"=\"brownfield\"];\n  node[\"landuse\"=\"landfill\"];\n  way[\"landuse\"=\"landfill\"];\n  relation[\"landuse\"=\"landfill\"];\n  node[\"landuse\"=\"construction\"];\n  way[\"landuse\"=\"construction\"];\n  relation[\"landuse\"=\"construction\"];\n  node[\"man_made\"=\"wastewater_plant\"];\n  way[\"man_made\"=\"wastewater_plant\"];\n  node[\"man_made\"=\"chimney\"];\n  way[\"man_made\"=\"chimney\"];\n  node[\"industrial\"];\n  way[\"industrial\"];\n  node[\"abandoned\"];\n  way[\"abandoned\"];\n  node[\"ruins\"=\"yes\"];\n  way[\"ruins\"=\"yes\"];\n  node[\"disused\"=\"yes\"];\n  way[\"disused\"=\"yes\"];\n  way[\"building\"=\"industrial\"];\n  way[\"building\"=\"warehouse\"];\n  node[\"amenity\"=\"waste_disposal\"];\n  way[\"amenity\"=\"waste_disposal\"];\n  node[\"amenity\"=\"recycling\"];\n  way[\"amenity\"=\"recycling\"];\n);\nout center;"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [40, 300],
+      "id": "overpass-request",
+      "name": "Overpass API Query"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=elements",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [280, 300],
+      "id": "split-elements",
+      "name": "Split Elements"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of items) {\n  const el = item.json;\n  \n  // Get coordinates\n  let lat = el.lat || (el.center ? el.center.lat : null);\n  let lon = el.lon || (el.center ? el.center.lon : null);\n  \n  if (!lat || !lon) continue;\n  \n  const tags = el.tags || {};\n  const name = tags.name || tags['addr:street'] || 'Unnamed';\n  \n  // Classify site type\n  let site_type = 'industrial';\n  let landuse = tags.landuse || '';\n  let building = tags.building || '';\n  let manMade = tags.man_made || '';\n  let amenity = tags.amenity || '';\n  \n  if (landuse === 'brownfield') site_type = 'brownfield';\n  else if (landuse === 'landfill') site_type = 'landfill';\n  else if (landuse === 'construction') site_type = 'construction';\n  else if (manMade === 'wastewater_plant') site_type = 'sewage';\n  else if (manMade === 'chimney') site_type = 'chimney_stack';\n  else if (amenity === 'waste_disposal' || amenity === 'recycling') site_type = 'waste_facility';\n  else if (building === 'warehouse') site_type = 'warehouse';\n  else if (building === 'industrial') site_type = 'industrial_building';\n  else if (tags.abandoned || tags.disused === 'yes') site_type = 'abandoned';\n  else if (tags.ruins === 'yes') site_type = 'ruins';\n  else if (tags.industrial) site_type = 'industrial_' + tags.industrial;\n  \n  // Determine decay relevance\n  let category = 'infrastructure';\n  if (['brownfield','landfill','sewage','abandoned','ruins'].includes(site_type)) {\n    category = 'decay';\n  } else if (['waste_facility'].includes(site_type)) {\n    category = 'decay';\n  } else if (site_type === 'construction') {\n    category = 'infrastructure';\n  }\n  \n  results.push({\n    json: {\n      latitude: Math.round(lat * 100000) / 100000,\n      longitude: Math.round(lon * 100000) / 100000,\n      name: name,\n      site_type: site_type,\n      category: category,\n      osm_id: el.id,\n      osm_type: el.type,\n      landuse: landuse,\n      building: building,\n      source: 'OpenStreetMap Overpass'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 300],
+      "id": "classify-sites",
+      "name": "Extract & Classify Sites"
+    },
+    {
+      "parameters": {
+        "operation": "removeDuplicates",
+        "compare": "selectedFields",
+        "fieldsToCompare": "latitude,longitude",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 4,
+      "position": [720, 300],
+      "id": "dedup-sites",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [940, 300],
+      "id": "to-csv-sites",
+      "name": "Convert to CSV"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "C:\\Users\\jiang\\Desktop\\overpass_dagenham_sites.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [1160, 300],
+      "id": "save-csv-sites",
+      "name": "Save to Desktop"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [[{"node": "Overpass API Query", "type": "main", "index": 0}]]
+    },
+    "Overpass API Query": {
+      "main": [[{"node": "Split Elements", "type": "main", "index": 0}]]
+    },
+    "Split Elements": {
+      "main": [[{"node": "Extract & Classify Sites", "type": "main", "index": 0}]]
+    },
+    "Extract & Classify Sites": {
+      "main": [[{"node": "Remove Duplicates", "type": "main", "index": 0}]]
+    },
+    "Remove Duplicates": {
+      "main": [[{"node": "Convert to CSV", "type": "main", "index": 0}]]
+    },
+    "Convert to CSV": {
+      "main": [[{"node": "Save to Desktop", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "instanceId": "aa-workshop-overpass-landuse"
+  },
+  "tags": []
+}
